@@ -1,0 +1,30 @@
+{
+    "name": "marceline-backend",
+    "version": "1.0.0",
+    "description": "Backend server for Marceline Voice-Activated AI Assistant",
+    "main": "dist/server.js",
+    "scripts": {
+        "dev": "ts-node-dev --respawn src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "test": "jest"
+    },
+    "dependencies": {
+        "@google/generative-ai": "^0.21.0",
+        "@modelcontextprotocol/sdk": "^1.25.1",
+        "better-sqlite3": "^11.6.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.21.1",
+        "uuid": "^10.0.0"
+    },
+    "devDependencies": {
+        "@types/better-sqlite3": "^7.6.12",
+        "@types/cors": "^2.8.17",
+        "@types/express": "^5.0.0",
+        "@types/node": "^22.10.2",
+        "@types/uuid": "^10.0.0",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.7.2"
+    }
+}

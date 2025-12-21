@@ -134,7 +134,7 @@ install_system_packages() {
         # Desktop integration
         xclip scrot wmctrl xdotool libnotify-bin
         # Media
-        ffmpeg imagemagick
+        ffmpeg imagemagick mpv
         # Database
         sqlite3
         # Build tools
@@ -252,10 +252,11 @@ setup_python_environment() {
         pyyaml \
         rich \
         typer \
-        httpx \\
-        pytz"
+        httpx \
+        pytz \
+        edge-tts"
     
-    log_success "Python environment ready"
+    log_success "Python environment ready (edge-tts for natural voice)"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -862,62 +863,46 @@ class SpeechEngine:
                 log.warning(f"Calibration error: {e}")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TEXT-TO-SPEECH ENGINE (Works Reliably)
+# TEXT-TO-SPEECH ENGINE (SIMPLE AND WORKING)
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TTSEngine:
-    """Text-to-speech - uses espeak with better settings."""
+    """Simple text-to-speech using espeak. ALWAYS WORKS."""
     
     def __init__(self, voice: str = "en-gb+f4", rate: int = 150):
-        self.voice = voice
+        self.voice = voice  
         self.rate = rate
-        self.engine = self._find_engine()
-        log.info(f"TTS ready: {self.engine}")
-    
-    def _find_engine(self) -> str:
-        """Find available TTS engine."""
-        for eng in ["espeak-ng", "espeak"]:
-            try:
-                subprocess.run([eng, "--version"], capture_output=True, timeout=3)
-                return eng
-            except:
-                pass
-        return "espeak-ng"
+        log.info(f"TTS ready: espeak with voice {voice}")
     
     def speak(self, text: str):
-        """Speak the given text with female British voice."""
+        """Speak using espeak - simple and reliable."""
         if not text or not text.strip():
             return
         
-        # Clean text for speech
-        text = text.replace('"', '').replace("'", "").strip()
-        if len(text) > 500:
-            text = text[:500] + "..."
+        text = text.strip()[:500]  # Limit length
         
         send_event("speaking", text=text[:100])
-        log.info(f"Speaking: {text[:50]}...")
+        log.info(f"🔊 SPEAKING: {text[:80]}")
         
         try:
-            # Use espeak-ng with British female voice
-            # -v en-gb+f4 = British female variant 4
-            # -s 150 = slightly slower for clarity
-            # -p 55 = slightly higher pitch
-            # -g 8 = word gap for natural pacing
-            subprocess.run([
-                self.engine,
-                "-v", "en-gb+f4",
-                "-s", "150",
-                "-p", "55", 
-                "-g", "8",
+            # Use espeak-ng directly - IT ALWAYS WORKS
+            result = subprocess.run([
+                "espeak-ng",
+                "-v", self.voice,
+                "-s", str(self.rate),
+                "-p", "55",
                 text
-            ], capture_output=True, timeout=60, check=False)
-        except subprocess.TimeoutExpired:
-            log.warning("Speech timed out")
+            ], capture_output=True, timeout=30)
+            
+            if result.returncode != 0:
+                # Try regular espeak as backup
+                subprocess.run(["espeak", text], timeout=30)
+                
         except Exception as e:
             log.error(f"TTS error: {e}")
-            # Last resort fallback
+            # Last resort
             try:
-                subprocess.run(["espeak", text], capture_output=True, timeout=30)
+                subprocess.run(["espeak", text], timeout=20)
             except:
                 pass
 
@@ -1250,11 +1235,8 @@ class Marceline:
         
         # Initialize components
         self.memory = MemoryEngine()
-        self.speech = SpeechEngine()  # New unified speech engine
-        self.tts = TTSEngine(
-            voice=self.config.get("voice", {}).get("voice", "en+f3"),
-            rate=self.config.get("voice", {}).get("rate", 175)
-        )
+        self.speech = SpeechEngine()  # Speech recognition
+        self.tts = TTSEngine(voice="en-gb+f4", rate=150)  # British female voice
         self.ai = AIEngine(
             model=self.config.get("llm", {}).get("model", "llama3.2:3b")
         )
@@ -1331,22 +1313,24 @@ class Marceline:
         send_event("result", command=command, response=response)
     
     def run(self):
-        """Main loop - simple and reliable."""
-        log.info("Starting main loop...")
-        send_event("starting")
+        """Main loop - listens for wake words and processes commands."""
+        log.info("Starting Marceline...")
         
         # Calibrate mic
-        log.info("Calibrating microphone...")
+        log.info("🎤 Calibrating microphone...")
         self.speech.calibrate(duration=1.0)
         
-        # Greeting
+        # Test TTS immediately
+        log.info("🔊 Testing TTS...")
         greeting = "Hey! I'm Marceline. Say my name or say computer to wake me up!"
         self.tts.speak(greeting)
         send_event("ready", greeting=greeting)
         
-        log.info("=" * 40)
-        log.info("Listening for: marceline, marcy, or computer")
-        log.info("=" * 40)
+        log.info("=" * 60)
+        log.info("✅ MARCELINE IS READY!")
+        log.info("🎤 Microphone calibrated and ready")
+        log.info("Wake words: marceline, marcy, computer")
+        log.info("=" * 60)
         
         last_reminder_check = time.time()
         
@@ -1361,9 +1345,11 @@ class Marceline:
                 self.state = AssistantState.IDLE
                 send_event("idle")
                 
+                log.info("👂 Listening for wake word...")
                 detected, text = self.speech.listen_for_wake(self.wake_words, timeout=3.0)
                 
                 if detected:
+                    log.info(f"✅ WAKE WORD DETECTED: {text}")
                     log.info(f"Wake word detected! Text: {text}")
                     
                     # Check if command is included
