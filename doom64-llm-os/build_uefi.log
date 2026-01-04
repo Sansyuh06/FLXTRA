@@ -1,0 +1,203 @@
+[*] Building DoomLLM OS...
+[*] Compiling kernel (Rust)...
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /mnt/d/fyeshi/project/OS/doom64-llm-os/kernel/Cargo.toml
+workspace: /mnt/d/fyeshi/project/OS/doom64-llm-os/Cargo.toml
+   Compiling kernel v0.1.0 (/mnt/d/fyeshi/project/OS/doom64-llm-os/kernel)
+warning: unused import: `alloc::vec::Vec`
+ --> ai/src/loader.rs:3:5
+  |
+3 | use alloc::vec::Vec;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `max_tokens`
+  --> ai/src/lib.rs:12:36
+   |
+12 | ...mpt: &str, max_tokens: usize) -> Resul...
+   |               ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_max_tokens`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `vocab_size`, `hidden_size`, and `num_layers` are never read
+ --> ai/src/loader.rs:6:5
+  |
+5 | pub struct Model {
+  |            ----- fields in this struct
+6 |     vocab_size: u32,
+  |     ^^^^^^^^^^
+7 |     hidden_size: u32,
+  |     ^^^^^^^^^^^
+8 |     num_layers: u32,
+  |     ^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `data` and `shape` are never read
+ --> ai/src/quantization.rs:4:5
+  |
+3 | pub struct Q4KMTensor {
+  |            ---------- fields in this struct
+4 |     data: alloc::vec::Vec<u8>,
+  |     ^^^^
+5 |     shape: (usize, usize),
+  |     ^^^^^
+
+warning: field `data` is never read
+ --> ai/src/fat32.rs:4:5
+  |
+3 | pub struct File {
+  |            ---- field in this struct
+4 |     data: alloc::vec::Vec<u8>,
+  |     ^^^^
+
+warning: creating a shared reference to mutable static
+  --> ai/src/loader.rs:27:9
+   |
+27 |         MODEL_CACHE.as_ref().ok_or("Model...
+   |         ^^^^^^^^^^^^^^^^^^^^ shared reference to mutable static
+   |
+   = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
+   = note: shared references to mutable statics are dangerous; it's undefined behavior if the static is mutated or if a mutable reference is created for it while the shared reference lives
+   = note: `#[warn(static_mut_refs)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+
+warning: field `data` is never read
+ --> game/src/wad_loader.rs:4:5
+  |
+3 | pub struct WAD {
+  |            --- field in this struct
+4 |     data: alloc::vec::Vec<u8>,
+  |     ^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ai` (lib) generated 6 warnings (run `cargo fix --lib -p ai` to apply 2 suggestions)
+warning: `game` (lib) generated 1 warning
+warning: crate-level attribute should be in the root module
+ --> kernel/src/memory.rs:1:1
+  |
+1 | #![feature(const_mut_refs)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_attributes)]` (part of `#[warn(unused)]`) on by default
+
+warning: the feature `const_mut_refs` has been stable since 1.83.0 and no longer requires an attribute to enable
+ --> kernel/src/main.rs:4:12
+  |
+4 | #![feature(const_mut_refs)]
+  |            ^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(stable_features)]` on by default
+
+warning: unnecessary `unsafe` block
+  --> kernel/src/memory.rs:90:5
+   |
+90 |     unsafe {
+   |     ^^^^^^ unnecessary `unsafe` block
+   |
+   = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `stack_frame`
+  --> kernel/src/interrupts.rs:73:41
+   |
+73 | ..._handler(stack_frame: InterruptSt...
+   |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stack_frame`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `stack_frame`
+  --> kernel/src/interrupts.rs:77:39
+   |
+77 | ..._handler(stack_frame: InterruptSt...
+   |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stack_frame`
+
+warning: unused variable: `stack_frame`
+  --> kernel/src/interrupts.rs:81:46
+   |
+81 | ..._handler(stack_frame: InterruptSt...
+   |             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_stack_frame`
+
+warning: static `HEADER` is never used
+  --> kernel/src/main.rs:22:8
+   |
+22 | static HEADER: [u8; 24] = [
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `inw` is never used
+  --> kernel/src/io.rs:23:8
+   |
+23 | pub fn inw(port: u16) -> u16 {
+   |        ^^^
+
+warning: function `outl` is never used
+  --> kernel/src/io.rs:31:8
+   |
+31 | pub fn outl(port: u16, value: u32) {
+   |        ^^^^
+
+warning: function `inl` is never used
+  --> kernel/src/io.rs:37:8
+   |
+37 | pub fn inl(port: u16) -> u32 {
+   |        ^^^
+
+warning: enum `Task` is never used
+ --> kernel/src/scheduler.rs:4:10
+  |
+4 | pub enum Task {
+  |          ^^^^
+
+warning: static `CURRENT_TASK` is never used
+ --> kernel/src/scheduler.rs:9:12
+  |
+9 | static mut CURRENT_TASK: Task = Task:...
+  |            ^^^^^^^^^^^^
+
+warning: function `switch_task` is never used
+  --> kernel/src/scheduler.rs:15:8
+   |
+15 | pub fn switch_task(to: Task) {
+   |        ^^^^^^^^^^^
+
+warning: function `current_task` is never used
+  --> kernel/src/scheduler.rs:21:8
+   |
+21 | pub fn current_task() -> Task {
+   |        ^^^^^^^^^^^^
+
+warning: function `is_key_pressed` is never used
+  --> kernel/src/keyboard.rs:37:8
+   |
+37 | pub fn is_key_pressed(scancode: u8) ...
+   |        ^^^^^^^^^^^^^^
+
+warning: function `is_key_held` is never used
+  --> kernel/src/keyboard.rs:41:8
+   |
+41 | pub fn is_key_held(scancode: u8) -> ...
+   |        ^^^^^^^^^^^
+
+warning: hiding a lifetime that's elided elsewhere is confusing
+  --> kernel/src/memory.rs:43:17
+   |
+43 | ...ck(&self) -> spin::MutexGuard<A> {
+   |       ^^^^^     ^^^^^^^^^^^^^^^^^^^ the same lifetime is hidden here
+   |       |
+   |       the lifetime is elided here
+   |
+   = help: the same lifetime is referred to in inconsistent ways, making the signature confusing
+   = note: `#[warn(mismatched_lifetime_syntaxes)]` on by default
+help: use `'_` for type paths
+   |
+43 |     pub fn lock(&self) -> spin::MutexGuard<'_, A> {
+   |                                            +++
+
+warning: `kernel` (bin "kernel") generated 17 warnings (run `cargo fix --bin "kernel" -p kernel` to apply 4 suggestions)
+    Finished `release` profile [optimized] target(s) in 1.69s
+[*] Extracting kernel binary...
+[*] Creating ISO structure...
+[*] Creating FAT32 filesystem...
+[*] Generating ISO with GRUB2...

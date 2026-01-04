@@ -1,0 +1,6 @@
+target/
+**/*.iso
+**/*.bin
+**/*.img
+disk/model.gguf
+disk/DOOM64.wad
