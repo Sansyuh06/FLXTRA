@@ -1,0 +1,14 @@
+D:\fyeshi\project\OS\target\release\deps\serde-ef3dbf2c6bd466f9.d: C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs D:\fyeshi\project\OS\target\release\build\serde-fa1d945d8b5feaec\out/private.rs
+
+D:\fyeshi\project\OS\target\release\deps\libserde-ef3dbf2c6bd466f9.rlib: C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs D:\fyeshi\project\OS\target\release\build\serde-fa1d945d8b5feaec\out/private.rs
+
+D:\fyeshi\project\OS\target\release\deps\libserde-ef3dbf2c6bd466f9.rmeta: C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs D:\fyeshi\project\OS\target\release\build\serde-fa1d945d8b5feaec\out/private.rs
+
+C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\Akash\ Santhnu\ Sundar\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+D:\fyeshi\project\OS\target\release\build\serde-fa1d945d8b5feaec\out/private.rs:
+
+# env-dep:OUT_DIR=D:\\fyeshi\\project\\OS\\target\\release\\build\\serde-fa1d945d8b5feaec\\out
