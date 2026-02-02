@@ -1,5 +1,5 @@
 //! Main Browser controller with full rendering
-use flxtra_core::{BrowserConfig, ContainerId, TabId, Result, AegisError};
+use flxtra_core::{BrowserConfig, ContainerId, TabId, Result, FlxtraError};
 use flxtra_css::values::Color;
 use flxtra_filter::FilterEngine;
 use flxtra_html::{HtmlParser, DomTree};
@@ -284,17 +284,17 @@ impl Browser {
             "Flxtra Browser",
             self.config.ui.window_width,
             self.config.ui.window_height,
-        ).map_err(|e| flxtra_core::AegisError::Internal(e.to_string()))?;
+        ).map_err(|e| flxtra_core::FlxtraError::Internal(e.to_string()))?;
 
         // Create D2D renderer
         let mut renderer = D2DRenderer::new()
-            .map_err(|e| flxtra_core::AegisError::Internal(e.to_string()))?;
+            .map_err(|e| flxtra_core::FlxtraError::Internal(e.to_string()))?;
         
         renderer.create_render_target(
             window.hwnd,
             self.config.ui.window_width,
             self.config.ui.window_height,
-        ).map_err(|e| flxtra_core::AegisError::Internal(e.to_string()))?;
+        ).map_err(|e| flxtra_core::FlxtraError::Internal(e.to_string()))?;
 
         self.renderer = Some(renderer);
         self.window = Some(window);
