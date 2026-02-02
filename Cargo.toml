@@ -3,15 +3,7 @@ resolver = "2"
 members = [
     "flxtra_core",
     "flxtra_net",
-    "flxtra_html",
-    "flxtra_css", 
-    "flxtra_js",
-    "flxtra_layout",
-    "flxtra_render",
-    "flxtra_ui",
-    "flxtra_sandbox",
     "flxtra_filter",
-    "flxtra_mcp",
     "flxtra_browser",
 ]
 
@@ -38,32 +30,6 @@ reqwest = { version = "0.11", features = ["rustls-tls", "gzip", "brotli"], defau
 rustls = "0.22"
 hickory-resolver = { version = "0.24", features = ["dns-over-https-rustls"] }
 url = "2.5"
-
-# Parsing
-html5ever = "0.27"
-markup5ever_rcdom = "0.3"
-cssparser = "0.31"
-selectors = "0.25"
-
-# UI (Windows native)
-windows = { version = "0.52", features = [
-    "Win32_Foundation",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_Graphics_Gdi",
-    "Win32_Graphics_Direct2D",
-    "Win32_Graphics_DirectWrite",
-    "Win32_System_LibraryLoader",
-    "Win32_System_Threading",
-    "Win32_Security",
-]}
-
-# Rendering
-wgpu = "0.18"
-winit = "0.29"
-
-# IPC/Sandbox
-ipc-channel = "0.18"
-caps = "0.5"
 
 # Utilities
 uuid = { version = "1.6", features = ["v4", "serde"] }
