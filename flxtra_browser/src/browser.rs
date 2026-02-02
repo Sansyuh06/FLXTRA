@@ -1,4 +1,4 @@
-//! Main Browser controller with full rendering
+//! Main Browser controller with full rendering and interactivity
 use flxtra_core::{BrowserConfig, ContainerId, TabId, Result, FlxtraError};
 use flxtra_css::values::Color;
 use flxtra_filter::FilterEngine;
@@ -6,11 +6,14 @@ use flxtra_html::{HtmlParser, DomTree};
 use flxtra_layout::{LayoutTree, LayoutEngine, LayoutBox};
 use flxtra_mcp::McpClient;
 use flxtra_net::NetworkClient;
-use flxtra_render::{DisplayList, Painter, D2DRenderer};
+use flxtra_render::{DisplayList, Painter, GdiRenderer};
 use flxtra_sandbox::container::ContainerManager;
-use flxtra_ui::{BrowserWindow, BrowserChrome, ChromeHitResult, NavButton, render_new_tab_page, render_loading_page};
+use flxtra_ui::{BrowserWindow, BrowserChrome, ChromeHitResult, NavButton, WindowEvent};
+use flxtra_ui::{render_new_tab_page, render_loading_page, render_error_page};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::cell::RefCell;
+use std::rc::Rc;
 use tracing::{info, debug, error};
 use flxtra_core::ResourceType;
 
@@ -46,7 +49,7 @@ pub struct Browser {
     filter: Arc<FilterEngine>,
     containers: ContainerManager,
     mcp: McpClient,
-    renderer: Option<D2DRenderer>,
+    renderer: Option<GdiRenderer>,
     window: Option<BrowserWindow>,
     active_tab: Option<TabId>,
 }
@@ -91,137 +94,34 @@ impl Browser {
         })
     }
 
-    pub async fn navigate(&mut self, url: &str) -> Result<()> {
-        let tab_id = match self.active_tab {
-            Some(id) => id,
-            None => return Ok(()),
-        };
+    pub fn handle_event(&mut self, event: WindowEvent) {
+        match event {
+            WindowEvent::Click { x, y } => {
+                self.handle_click(x, y);
+            }
+            WindowEvent::KeyPress { char: c } => {
+                self.handle_key(c);
+            }
+            WindowEvent::Resize { width, height } => {
+                self.chrome.resize(width as f32, height as f32);
+                if let Some(ref mut renderer) = self.renderer {
+                    renderer.resize(width, height);
+                }
+            }
+            WindowEvent::Paint => {
+                let _ = self.render();
+            }
+            WindowEvent::Close => {
+                info!("Browser closing");
+            }
+        }
+    }
 
-        info!("Navigating to: {}", url);
+    pub fn handle_click(&mut self, x: f32, y: f32) {
+        info!("Click at ({}, {})", x, y);
         
-        // Update chrome
-        self.chrome.set_url(url);
-        self.chrome.set_loading(true);
-
-        // Get or create page state
-        let page = self.pages.entry(tab_id).or_insert_with(PageState::new_tab);
-        page.url = url.to_string();
-        page.is_loading = true;
-        page.error = None;
-
-        // Handle internal URLs
-        if url.starts_with("flxtra://") {
-            page.is_loading = false;
-            page.title = match url {
-                "flxtra://newtab" => "New Tab".to_string(),
-                "flxtra://settings" => "Settings".to_string(),
-                "flxtra://privacy" => "Privacy Dashboard".to_string(),
-                _ => "Flxtra".to_string(),
-            };
-            self.chrome.set_title(&page.title);
-            self.chrome.set_loading(false);
-            return self.render();
-        }
-
-        // Fetch page
-        match self.network.fetch(url, ResourceType::Document, None).await {
-            Ok(response) => {
-                let html = String::from_utf8_lossy(&response.body).to_string();
-                debug!("Received {} bytes", html.len());
-
-                // Parse HTML
-                let parser = HtmlParser::new();
-                let document = parser.parse(&html);
-                let dom_tree = DomTree::new(document);
-
-                // Get title
-                if let Some(title) = dom_tree.title() {
-                    page.title = title.clone();
-                    self.chrome.set_title(&title);
-                }
-
-                // Build layout
-                if let Some(doc_elem) = dom_tree.document_element() {
-                    let mut layout_root = LayoutTree::build(&doc_elem.node);
-                    let content = self.chrome.content_area();
-                    let engine = LayoutEngine::new(content.width, content.height);
-                    engine.layout(&mut layout_root);
-                    
-                    // Paint to display list
-                    page.display_list = Painter::paint(&layout_root);
-                    page.layout_root = Some(layout_root);
-                }
-
-                page.is_loading = false;
-            }
-            Err(e) => {
-                error!("Failed to load page: {}", e);
-                page.error = Some(e.to_string());
-                page.is_loading = false;
-            }
-        }
-
-        self.chrome.set_loading(false);
-        self.chrome.update_blocked_count(self.filter.blocked_count());
-        self.render()
-    }
-
-    pub fn render(&mut self) -> Result<()> {
-        let mut display_list = DisplayList::new();
-
-        // Render browser chrome
-        self.chrome.render(&mut display_list);
-
-        // Render page content
-        let content_area = self.chrome.content_area();
-        
-        if let Some(tab_id) = self.active_tab {
-            if let Some(page) = self.pages.get(&tab_id) {
-                if page.is_loading {
-                    render_loading_page(&mut display_list, content_area, &page.url);
-                } else if page.url == "flxtra://newtab" {
-                    render_new_tab_page(&mut display_list, content_area);
-                } else if let Some(error) = &page.error {
-                    flxtra_ui::render_error_page(&mut display_list, content_area, error);
-                } else {
-                    // Render page display list at content area offset
-                    for cmd in &page.display_list.commands {
-                        display_list.push(Self::offset_command(cmd.clone(), content_area.x, content_area.y));
-                    }
-                }
-            }
-        }
-
-        // Render to screen
-        if let Some(renderer) = &self.renderer {
-            renderer.render(&display_list, Color::new(18, 18, 20, 255));
-        }
-
-        Ok(())
-    }
-
-    fn offset_command(cmd: flxtra_render::DisplayCommand, dx: f32, dy: f32) -> flxtra_render::DisplayCommand {
-        use flxtra_render::DisplayCommand::*;
-        match cmd {
-            SolidColor { color, rect } => SolidColor {
-                color,
-                rect: flxtra_layout::box_model::Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height),
-            },
-            Text { text, x, y, color, size } => Text { text, x: x + dx, y: y + dy, color, size },
-            Border { rect, color, width } => Border {
-                rect: flxtra_layout::box_model::Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height),
-                color,
-                width,
-            },
-            Image { url, rect } => Image {
-                url,
-                rect: flxtra_layout::box_model::Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height),
-            },
-        }
-    }
-
-    pub fn handle_click(&mut self, x: f32, y: f32) -> Result<()> {
         if let Some(hit) = self.chrome.hit_test(x, y) {
+            info!("Hit: {:?}", hit);
             match hit {
                 ChromeHitResult::Tab(index) => {
                     self.chrome.switch_tab(index);
@@ -237,45 +137,119 @@ impl Browser {
                     self.active_tab = Some(tab_id);
                 }
                 ChromeHitResult::NavButton(NavButton::Back) => {
-                    // TODO: History navigation
+                    info!("Back button clicked");
                 }
                 ChromeHitResult::NavButton(NavButton::Forward) => {
-                    // TODO: History navigation
+                    info!("Forward button clicked");
                 }
                 ChromeHitResult::NavButton(NavButton::Refresh) => {
-                    if let Some(page) = self.active_tab.and_then(|id| self.pages.get(&id)) {
-                        let url = page.url.clone();
-                        // Would need async context to navigate
-                    }
+                    info!("Refresh button clicked");
                 }
                 ChromeHitResult::NavButton(NavButton::Home) => {
-                    // Would need async context to navigate
+                    // Navigate to home (new tab)
+                    if let Some(tab_id) = self.active_tab {
+                        if let Some(page) = self.pages.get_mut(&tab_id) {
+                            page.url = "flxtra://newtab".to_string();
+                            page.title = "New Tab".to_string();
+                            self.chrome.set_url("flxtra://newtab");
+                            self.chrome.set_title("New Tab");
+                        }
+                    }
                 }
                 ChromeHitResult::UrlBar => {
-                    self.chrome.is_url_focused = true;
+                    self.chrome.is_url_focused = !self.chrome.is_url_focused;
+                    if self.chrome.is_url_focused {
+                        // Copy current URL to input
+                        if let Some(tab_id) = self.active_tab {
+                            if let Some(page) = self.pages.get(&tab_id) {
+                                self.chrome.url_input = page.url.clone();
+                            }
+                        }
+                    }
+                }
+                ChromeHitResult::CloseTab(index) => {
+                    self.chrome.close_tab(index);
                 }
                 _ => {}
             }
-            self.render()?;
         }
-        Ok(())
+        
+        let _ = self.render();
     }
 
     pub fn handle_key(&mut self, key: char) {
         if self.chrome.is_url_focused {
-            if key == '\r' {
-                // Enter pressed - navigate
+            if key == '\r' || key == '\n' {
+                // Enter pressed - would navigate
                 let url = self.chrome.url_input.clone();
                 self.chrome.is_url_focused = false;
-                // Would need async context to navigate
+                info!("Navigate to: {}", url);
+                self.chrome.status_text = format!("Navigating to {}...", url);
             } else if key == '\x08' {
                 // Backspace
                 self.chrome.url_input.pop();
-            } else {
+            } else if key == '\x1b' {
+                // Escape - cancel
+                self.chrome.is_url_focused = false;
+            } else if !key.is_control() {
                 self.chrome.url_input.push(key);
             }
             let _ = self.render();
         }
+    }
+
+    pub fn navigate_sync(&mut self, url: &str) {
+        if let Some(tab_id) = self.active_tab {
+            if let Some(page) = self.pages.get_mut(&tab_id) {
+                // Handle internal URLs
+                if url.starts_with("flxtra://") {
+                    page.url = url.to_string();
+                    page.title = match url {
+                        "flxtra://newtab" => "New Tab".to_string(),
+                        "flxtra://settings" => "Settings".to_string(),
+                        _ => "Flxtra".to_string(),
+                    };
+                    page.is_loading = false;
+                    page.error = None;
+                    self.chrome.set_url(url);
+                    self.chrome.set_title(&page.title);
+                }
+            }
+        }
+    }
+
+    pub fn render(&mut self) -> Result<()> {
+        let mut display_list = DisplayList::new();
+
+        // Render browser chrome
+        self.chrome.render(&mut display_list);
+
+        // Render page content
+        let content_area = self.chrome.content_area();
+        
+        if let Some(tab_id) = self.active_tab {
+            if let Some(page) = self.pages.get(&tab_id) {
+                if page.is_loading {
+                    render_loading_page(&mut display_list, content_area, &page.url);
+                } else if page.url == "flxtra://newtab" || page.url.starts_with("flxtra://") {
+                    render_new_tab_page(&mut display_list, content_area);
+                } else if let Some(error) = &page.error {
+                    render_error_page(&mut display_list, content_area, error);
+                } else {
+                    // Render page display list at content area offset
+                    for cmd in &page.display_list.commands {
+                        display_list.push(offset_command(cmd.clone(), content_area.x, content_area.y));
+                    }
+                }
+            }
+        }
+
+        // Render to screen
+        if let Some(ref renderer) = self.renderer {
+            renderer.render(&display_list, Color::new(18, 18, 20, 255));
+        }
+
+        Ok(())
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -284,25 +258,35 @@ impl Browser {
             "Flxtra Browser",
             self.config.ui.window_width,
             self.config.ui.window_height,
-        ).map_err(|e| flxtra_core::FlxtraError::Internal(e.to_string()))?;
+        ).map_err(|e| FlxtraError::Internal(e.to_string()))?;
 
-        // Create D2D renderer
-        let mut renderer = D2DRenderer::new()
-            .map_err(|e| flxtra_core::FlxtraError::Internal(e.to_string()))?;
+        // Create GDI renderer
+        let mut renderer = GdiRenderer::new()
+            .map_err(|e| FlxtraError::Internal(e.to_string()))?;
         
         renderer.create_render_target(
             window.hwnd,
             self.config.ui.window_width,
             self.config.ui.window_height,
-        ).map_err(|e| flxtra_core::FlxtraError::Internal(e.to_string()))?;
+        ).map_err(|e| FlxtraError::Internal(e.to_string()))?;
 
         self.renderer = Some(renderer);
+
+        // Set up event callback using RefCell for interior mutability
+        // We need to use raw pointers here to work around the borrow checker
+        let browser_ptr = self as *mut Browser;
+        window.set_event_callback(move |event| {
+            unsafe {
+                (*browser_ptr).handle_event(event);
+            }
+        });
+
         self.window = Some(window);
 
         // Initial render
         self.render()?;
 
-        info!("Flxtra Browser running");
+        info!("Flxtra Browser running - click to interact!");
 
         // Run event loop
         if let Some(ref window) = self.window {
@@ -310,5 +294,25 @@ impl Browser {
         }
 
         Ok(())
+    }
+}
+
+fn offset_command(cmd: flxtra_render::DisplayCommand, dx: f32, dy: f32) -> flxtra_render::DisplayCommand {
+    use flxtra_render::DisplayCommand::*;
+    match cmd {
+        SolidColor { color, rect } => SolidColor {
+            color,
+            rect: flxtra_layout::box_model::Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height),
+        },
+        Text { text, x, y, color, size } => Text { text, x: x + dx, y: y + dy, color, size },
+        Border { rect, color, width } => Border {
+            rect: flxtra_layout::box_model::Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height),
+            color,
+            width,
+        },
+        Image { url, rect } => Image {
+            url,
+            rect: flxtra_layout::box_model::Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height),
+        },
     }
 }

@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let mut browser = Browser::new(config).await?;
     
     // Navigate to homepage
-    browser.navigate("flxtra://newtab").await?;
+    browser.navigate_sync("flxtra://newtab");
 
     // Run the browser
     browser.run().await?;
