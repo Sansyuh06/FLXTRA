@@ -1,0 +1,11 @@
+[package]
+name = "flxtra_ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+flxtra_render = { path = "../flxtra_render" }
+tracing.workspace = true
+windows.workspace = true

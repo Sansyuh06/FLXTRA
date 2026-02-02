@@ -1,0 +1,26 @@
+[package]
+name = "flxtra_net"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+flxtra_filter = { path = "../flxtra_filter" }
+
+tokio.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+reqwest.workspace = true
+rustls.workspace = true
+hickory-resolver.workspace = true
+url.workspace = true
+
+bytes.workspace = true
+dashmap.workspace = true
+parking_lot.workspace = true

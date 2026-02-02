@@ -1,0 +1,15 @@
+[package]
+name = "flxtra_filter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+
+regex.workspace = true
+once_cell.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+url.workspace = true
+serde.workspace = true

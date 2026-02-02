@@ -1,0 +1,27 @@
+[package]
+name = "flxtra_browser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "Flxtra"
+path = "src/main.rs"
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+flxtra_net = { path = "../flxtra_net" }
+flxtra_filter = { path = "../flxtra_filter" }
+flxtra_html = { path = "../flxtra_html" }
+flxtra_css = { path = "../flxtra_css" }
+flxtra_js = { path = "../flxtra_js" }
+flxtra_layout = { path = "../flxtra_layout" }
+flxtra_render = { path = "../flxtra_render" }
+flxtra_ui = { path = "../flxtra_ui" }
+flxtra_sandbox = { path = "../flxtra_sandbox" }
+flxtra_mcp = { path = "../flxtra_mcp" }
+
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true

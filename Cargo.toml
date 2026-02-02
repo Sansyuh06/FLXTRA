@@ -1,26 +1,26 @@
 [workspace]
 resolver = "2"
 members = [
-    "aegis_core",
-    "aegis_net",
-    "aegis_html",
-    "aegis_css", 
-    "aegis_js",
-    "aegis_layout",
-    "aegis_render",
-    "aegis_ui",
-    "aegis_sandbox",
-    "aegis_filter",
-    "aegis_mcp",
-    "aegis_browser",
+    "flxtra_core",
+    "flxtra_net",
+    "flxtra_html",
+    "flxtra_css", 
+    "flxtra_js",
+    "flxtra_layout",
+    "flxtra_render",
+    "flxtra_ui",
+    "flxtra_sandbox",
+    "flxtra_filter",
+    "flxtra_mcp",
+    "flxtra_browser",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Aegis Browser Contributors"]
+authors = ["Flxtra Browser Contributors"]
 license = "MPL-2.0"
-repository = "https://github.com/aegis-browser/aegis"
+repository = "https://github.com/flxtra-browser/flxtra"
 
 [workspace.dependencies]
 # Core

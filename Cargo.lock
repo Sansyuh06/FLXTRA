@@ -9,167 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
-name = "aegis_browser"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "aegis_css",
- "aegis_filter",
- "aegis_html",
- "aegis_js",
- "aegis_layout",
- "aegis_mcp",
- "aegis_net",
- "aegis_render",
- "aegis_sandbox",
- "aegis_ui",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "aegis_core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytes",
- "chrono",
- "parking_lot",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "aegis_css"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "cssparser",
- "selectors",
- "serde",
- "tracing",
-]
-
-[[package]]
-name = "aegis_filter"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "once_cell",
- "parking_lot",
- "regex",
- "serde",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "aegis_html"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "html5ever",
- "markup5ever_rcdom",
- "parking_lot",
- "serde",
- "string_cache",
- "tendril",
- "tracing",
-]
-
-[[package]]
-name = "aegis_js"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "dashmap",
- "parking_lot",
- "serde",
- "serde_json",
- "tracing",
-]
-
-[[package]]
-name = "aegis_layout"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "aegis_css",
- "aegis_html",
- "serde",
- "tracing",
-]
-
-[[package]]
-name = "aegis_mcp"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "aegis_net"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "aegis_filter",
- "anyhow",
- "async-trait",
- "bytes",
- "dashmap",
- "hickory-resolver",
- "parking_lot",
- "reqwest",
- "rustls 0.22.4",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "aegis_render"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "aegis_css",
- "aegis_layout",
- "tracing",
-]
-
-[[package]]
-name = "aegis_sandbox"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "serde",
- "tracing",
- "windows",
-]
-
-[[package]]
-name = "aegis_ui"
-version = "0.1.0"
-dependencies = [
- "aegis_core",
- "aegis_render",
- "tracing",
- "windows",
-]
-
-[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -497,6 +336,168 @@ checksum = "b375d6465b98090a5f25b1c7703f3859783755aa9a80433b36e0379a3ec2f369"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
+]
+
+[[package]]
+name = "flxtra_browser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flxtra_core",
+ "flxtra_css",
+ "flxtra_filter",
+ "flxtra_html",
+ "flxtra_js",
+ "flxtra_layout",
+ "flxtra_mcp",
+ "flxtra_net",
+ "flxtra_render",
+ "flxtra_sandbox",
+ "flxtra_ui",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "flxtra_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chrono",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "flxtra_css"
+version = "0.1.0"
+dependencies = [
+ "cssparser",
+ "flxtra_core",
+ "selectors",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "flxtra_filter"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "once_cell",
+ "parking_lot",
+ "regex",
+ "serde",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "flxtra_html"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "html5ever",
+ "markup5ever_rcdom",
+ "parking_lot",
+ "serde",
+ "string_cache",
+ "tendril",
+ "tracing",
+]
+
+[[package]]
+name = "flxtra_js"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "flxtra_core",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "flxtra_layout"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "flxtra_css",
+ "flxtra_html",
+ "serde",
+ "tracing",
+]
+
+[[package]]
+name = "flxtra_mcp"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "flxtra_net"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bytes",
+ "dashmap",
+ "flxtra_core",
+ "flxtra_filter",
+ "hickory-resolver",
+ "parking_lot",
+ "reqwest",
+ "rustls 0.22.4",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "flxtra_render"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "flxtra_css",
+ "flxtra_layout",
+ "tracing",
+]
+
+[[package]]
+name = "flxtra_sandbox"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "serde",
+ "tracing",
+ "windows",
+]
+
+[[package]]
+name = "flxtra_ui"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "flxtra_render",
+ "tracing",
+ "windows",
 ]
 
 [[package]]
