@@ -1,183 +1,158 @@
-//! Direct2D Renderer - Actual screen drawing
+//! GDI Renderer - Screen drawing using Windows GDI
 //!
-//! Renders display list commands to the Windows window using Direct2D
+//! Simpler rendering using GDI instead of Direct2D
 
 use crate::display_list::{DisplayCommand, DisplayList};
 use flxtra_css::values::Color;
 use flxtra_layout::box_model::Rect;
-use std::ptr;
+use std::ffi::OsStr;
+use std::os::windows::ffi::OsStrExt;
 use tracing::{debug, info};
-use windows::core::{Interface, PCWSTR};
 use windows::Win32::Foundation::{HWND, RECT};
-use windows::Win32::Graphics::Direct2D::Common::*;
-use windows::Win32::Graphics::Direct2D::*;
-use windows::Win32::Graphics::DirectWrite::*;
 use windows::Win32::Graphics::Gdi::*;
 
-/// Direct2D Renderer
-pub struct D2DRenderer {
-    factory: ID2D1Factory,
-    write_factory: IDWriteFactory,
-    render_target: Option<ID2D1HwndRenderTarget>,
-    text_format: Option<IDWriteTextFormat>,
+fn to_wstring(s: &str) -> Vec<u16> {
+    OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
 }
 
-impl D2DRenderer {
-    pub fn new() -> windows::core::Result<Self> {
-        unsafe {
-            let factory: ID2D1Factory = D2D1CreateFactory(
-                D2D1_FACTORY_TYPE_SINGLE_THREADED,
-                None,
-            )?;
+/// GDI-based renderer
+pub struct GdiRenderer {
+    hwnd: Option<HWND>,
+    width: u32,
+    height: u32,
+}
 
-            let write_factory: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
-
-            info!("Direct2D renderer initialized");
-
-            Ok(Self {
-                factory,
-                write_factory,
-                render_target: None,
-                text_format: None,
-            })
+impl GdiRenderer {
+    pub fn new() -> Self {
+        info!("GDI renderer initialized");
+        Self {
+            hwnd: None,
+            width: 0,
+            height: 0,
         }
     }
 
-    pub fn create_render_target(&mut self, hwnd: HWND, width: u32, height: u32) -> windows::core::Result<()> {
-        unsafe {
-            let render_props = D2D1_RENDER_TARGET_PROPERTIES {
-                r#type: D2D1_RENDER_TARGET_TYPE_DEFAULT,
-                pixelFormat: D2D1_PIXEL_FORMAT {
-                    format: windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM,
-                    alphaMode: D2D1_ALPHA_MODE_PREMULTIPLIED,
-                },
-                dpiX: 96.0,
-                dpiY: 96.0,
-                usage: D2D1_RENDER_TARGET_USAGE_NONE,
-                minLevel: D2D1_FEATURE_LEVEL_DEFAULT,
-            };
-
-            let hwnd_props = D2D1_HWND_RENDER_TARGET_PROPERTIES {
-                hwnd,
-                pixelSize: D2D_SIZE_U { width, height },
-                presentOptions: D2D1_PRESENT_OPTIONS_NONE,
-            };
-
-            let render_target = self.factory.CreateHwndRenderTarget(&render_props, &hwnd_props)?;
-            self.render_target = Some(render_target);
-
-            // Create default text format
-            let text_format = self.write_factory.CreateTextFormat(
-                PCWSTR::from_raw("Segoe UI\0".encode_utf16().collect::<Vec<u16>>().as_ptr()),
-                None,
-                DWRITE_FONT_WEIGHT_NORMAL,
-                DWRITE_FONT_STYLE_NORMAL,
-                DWRITE_FONT_STRETCH_NORMAL,
-                16.0,
-                PCWSTR::from_raw("en-us\0".encode_utf16().collect::<Vec<u16>>().as_ptr()),
-            )?;
-            self.text_format = Some(text_format);
-
-            info!("Render target created: {}x{}", width, height);
-            Ok(())
-        }
+    pub fn set_window(&mut self, hwnd: HWND, width: u32, height: u32) {
+        self.hwnd = Some(hwnd);
+        self.width = width;
+        self.height = height;
+        info!("GDI target set: {}x{}", width, height);
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-        if let Some(ref target) = self.render_target {
-            unsafe {
-                let size = D2D_SIZE_U { width, height };
-                let _ = target.Resize(&size);
-            }
-        }
+        self.width = width;
+        self.height = height;
     }
 
     pub fn render(&self, display_list: &DisplayList, bg_color: Color) {
-        let target = match &self.render_target {
-            Some(t) => t,
+        let hwnd = match self.hwnd {
+            Some(h) => h,
             None => return,
         };
 
         unsafe {
-            target.BeginDraw();
+            let hdc = GetDC(hwnd);
+            if hdc.is_invalid() { return; }
+
+            // Create double buffer
+            let mem_dc = CreateCompatibleDC(hdc);
+            let bitmap = CreateCompatibleBitmap(hdc, self.width as i32, self.height as i32);
+            let old_bitmap = SelectObject(mem_dc, bitmap);
 
             // Clear background
-            let clear_color = self.to_d2d_color(bg_color);
-            target.Clear(Some(&clear_color));
+            let bg_brush = CreateSolidBrush(COLORREF(self.to_colorref(bg_color)));
+            let bg_rect = RECT { left: 0, top: 0, right: self.width as i32, bottom: self.height as i32 };
+            FillRect(mem_dc, &bg_rect, bg_brush);
+            let _ = DeleteObject(bg_brush);
 
-            // Render each command
+            // Render commands
             for cmd in &display_list.commands {
-                self.render_command(target, cmd);
+                self.render_command(mem_dc, cmd);
             }
 
-            let _ = target.EndDraw(None, None);
+            // Copy to screen
+            let _ = BitBlt(hdc, 0, 0, self.width as i32, self.height as i32, mem_dc, 0, 0, SRCCOPY);
+
+            // Cleanup
+            SelectObject(mem_dc, old_bitmap);
+            let _ = DeleteObject(bitmap);
+            let _ = DeleteDC(mem_dc);
+            ReleaseDC(hwnd, hdc);
         }
     }
 
-    unsafe fn render_command(&self, target: &ID2D1HwndRenderTarget, cmd: &DisplayCommand) {
+    unsafe fn render_command(&self, hdc: HDC, cmd: &DisplayCommand) {
         match cmd {
             DisplayCommand::SolidColor { color, rect } => {
-                let brush = target.CreateSolidColorBrush(&self.to_d2d_color(*color), None).ok();
-                if let Some(brush) = brush {
-                    let d2d_rect = self.to_d2d_rect(rect);
-                    target.FillRectangle(&d2d_rect, &brush);
-                }
+                let brush = CreateSolidBrush(COLORREF(self.to_colorref(*color)));
+                let r = self.to_gdi_rect(rect);
+                FillRect(hdc, &r, brush);
+                let _ = DeleteObject(brush);
             }
             DisplayCommand::Text { text, x, y, color, size } => {
-                let brush = target.CreateSolidColorBrush(&self.to_d2d_color(*color), None).ok();
-                if let (Some(brush), Some(format)) = (brush, &self.text_format) {
-                    let wide: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
-                    let layout_rect = D2D_RECT_F {
-                        left: *x,
-                        top: *y - size,
-                        right: *x + 1000.0,
-                        bottom: *y + size,
-                    };
-                    target.DrawText(
-                        &wide[..wide.len()-1],
-                        format,
-                        &layout_rect,
-                        &brush,
-                        D2D1_DRAW_TEXT_OPTIONS_NONE,
-                        DWRITE_MEASURING_MODE_NATURAL,
-                    );
-                }
+                SetBkMode(hdc, TRANSPARENT);
+                SetTextColor(hdc, COLORREF(self.to_colorref(*color)));
+                
+                // Create font
+                let font = CreateFontW(
+                    *size as i32,
+                    0, 0, 0,
+                    FW_NORMAL.0 as i32,
+                    0, 0, 0,
+                    DEFAULT_CHARSET.0 as u32,
+                    OUT_DEFAULT_PRECIS.0 as u32,
+                    CLIP_DEFAULT_PRECIS.0 as u32,
+                    CLEARTYPE_QUALITY.0 as u32,
+                    (FF_SWISS.0 | VARIABLE_PITCH.0) as u32,
+                    windows::core::PCWSTR(to_wstring("Segoe UI").as_ptr()),
+                );
+                let old_font = SelectObject(hdc, font);
+                
+                let wide = to_wstring(text);
+                let _ = TextOutW(hdc, *x as i32, (*y - size) as i32, &wide[..wide.len()-1]);
+                
+                SelectObject(hdc, old_font);
+                let _ = DeleteObject(font);
             }
             DisplayCommand::Border { rect, color, width } => {
-                let brush = target.CreateSolidColorBrush(&self.to_d2d_color(*color), None).ok();
-                if let Some(brush) = brush {
-                    let d2d_rect = self.to_d2d_rect(rect);
-                    target.DrawRectangle(&d2d_rect, &brush, *width, None);
-                }
+                let pen = CreatePen(PS_SOLID, *width as i32, COLORREF(self.to_colorref(*color)));
+                let old_pen = SelectObject(hdc, pen);
+                let null_brush = GetStockObject(NULL_BRUSH);
+                let old_brush = SelectObject(hdc, null_brush);
+                
+                let _ = Rectangle(hdc, rect.x as i32, rect.y as i32, 
+                    (rect.x + rect.width) as i32, (rect.y + rect.height) as i32);
+                
+                SelectObject(hdc, old_brush);
+                SelectObject(hdc, old_pen);
+                let _ = DeleteObject(pen);
             }
             DisplayCommand::Image { url, rect } => {
-                // TODO: Image rendering
                 debug!("Image placeholder: {}", url);
+                // Draw placeholder
+                let brush = CreateSolidBrush(COLORREF(0x404040));
+                let r = self.to_gdi_rect(rect);
+                FillRect(hdc, &r, brush);
+                let _ = DeleteObject(brush);
             }
         }
     }
 
-    fn to_d2d_color(&self, color: Color) -> D2D1_COLOR_F {
-        D2D1_COLOR_F {
-            r: color.r as f32 / 255.0,
-            g: color.g as f32 / 255.0,
-            b: color.b as f32 / 255.0,
-            a: color.a as f32 / 255.0,
-        }
+    fn to_colorref(&self, color: Color) -> u32 {
+        // GDI uses BGR format
+        ((color.b as u32) << 16) | ((color.g as u32) << 8) | (color.r as u32)
     }
 
-    fn to_d2d_rect(&self, rect: &Rect) -> D2D_RECT_F {
-        D2D_RECT_F {
-            left: rect.x,
-            top: rect.y,
-            right: rect.x + rect.width,
-            bottom: rect.y + rect.height,
+    fn to_gdi_rect(&self, rect: &Rect) -> RECT {
+        RECT {
+            left: rect.x as i32,
+            top: rect.y as i32,
+            right: (rect.x + rect.width) as i32,
+            bottom: (rect.y + rect.height) as i32,
         }
     }
 }
 
-impl Default for D2DRenderer {
-    fn default() -> Self {
-        Self::new().expect("Failed to create D2D renderer")
-    }
+impl Default for GdiRenderer {
+    fn default() -> Self { Self::new() }
 }

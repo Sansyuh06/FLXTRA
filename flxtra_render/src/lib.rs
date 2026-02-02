@@ -5,4 +5,7 @@ pub mod d2d;
 
 pub use display_list::{DisplayList, DisplayCommand};
 pub use painter::Painter;
-pub use d2d::D2DRenderer;
+pub use d2d::GdiRenderer;
+
+// Alias for compatibility
+pub type D2DRenderer = GdiRenderer;
