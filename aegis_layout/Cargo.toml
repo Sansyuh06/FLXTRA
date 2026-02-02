@@ -1,0 +1,12 @@
+[package]
+name = "aegis_layout"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aegis_core = { path = "../aegis_core" }
+aegis_css = { path = "../aegis_css" }
+aegis_html = { path = "../aegis_html" }
+tracing.workspace = true
+serde.workspace = true

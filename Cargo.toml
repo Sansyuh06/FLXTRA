@@ -1,0 +1,75 @@
+[workspace]
+resolver = "2"
+members = [
+    "aegis_core",
+    "aegis_net",
+    "aegis_html",
+    "aegis_css", 
+    "aegis_js",
+    "aegis_layout",
+    "aegis_render",
+    "aegis_ui",
+    "aegis_sandbox",
+    "aegis_filter",
+    "aegis_mcp",
+    "aegis_browser",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Aegis Browser Contributors"]
+license = "MPL-2.0"
+repository = "https://github.com/aegis-browser/aegis"
+
+[workspace.dependencies]
+# Core
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Network
+reqwest = { version = "0.11", features = ["rustls-tls", "gzip", "brotli"], default-features = false }
+rustls = "0.22"
+hickory-resolver = { version = "0.24", features = ["dns-over-https-rustls"] }
+url = "2.5"
+
+# Parsing
+html5ever = "0.27"
+markup5ever_rcdom = "0.3"
+cssparser = "0.31"
+selectors = "0.25"
+
+# UI (Windows native)
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_DirectWrite",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+    "Win32_Security",
+]}
+
+# Rendering
+wgpu = "0.18"
+winit = "0.29"
+
+# IPC/Sandbox
+ipc-channel = "0.18"
+caps = "0.5"
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1.10"
+once_cell = "1.19"
+parking_lot = "0.12"
+dashmap = "5.5"
+bytes = "1.5"

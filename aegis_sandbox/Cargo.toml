@@ -1,0 +1,11 @@
+[package]
+name = "aegis_sandbox"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+aegis_core = { path = "../aegis_core" }
+tracing.workspace = true
+serde.workspace = true
+windows.workspace = true

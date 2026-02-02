@@ -1,0 +1,17 @@
+[package]
+name = "aegis_core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+parking_lot.workspace = true
+bytes.workspace = true
