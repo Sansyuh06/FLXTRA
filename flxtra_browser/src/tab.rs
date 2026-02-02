@@ -62,7 +62,7 @@ impl Tab {
             let mut layout_root = LayoutTree::build(&doc_elem.node);
             
             // Perform layout
-            let engine = LayoutEngine::new(1280.0, 720.0);
+            let mut engine = LayoutEngine::new(1280.0, 720.0);
             engine.layout(&mut layout_root);
 
             // Paint to display list
