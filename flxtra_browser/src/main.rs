@@ -352,6 +352,31 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                  });
                              }
                         },
+                        "close-tab" => {
+                            if let Some(idx) = val["data"].as_u64() {
+                                let idx = idx as usize;
+                                STATE.with(|s| {
+                                    let mut state = s.borrow_mut();
+                                    if idx < state.tabs.len() && state.tabs.len() > 1 {
+                                        let tab_id = state.tabs[idx].id;
+                                        
+                                        // Remove tab
+                                        state.tabs.remove(idx);
+                                        state.content_controllers.remove(&tab_id);
+                                        
+                                        // Switch to another tab
+                                        let new_idx = if idx >= state.tabs.len() { state.tabs.len() - 1 } else { idx };
+                                        state.active_tab_id = state.tabs[new_idx].id;
+                                        for (i, t) in state.tabs.iter_mut().enumerate() {
+                                            t.active = i == new_idx;
+                                        }
+                                        
+                                        state.sync_sidebar();
+                                        state.layout_content();
+                                    }
+                                });
+                            }
+                        },
                         "ai-scan" => {
                             // Trigger analysis on active tab
                              let active_id = STATE.with(|s| s.borrow().active_tab_id);
@@ -563,7 +588,14 @@ fn create_isolated_tab(hwnd: HWND, tab_id: Uuid) -> anyhow::Result<()> {
                          if !tab.url.is_empty() {
                              let _ = webview.navigate(&tab.url);
                          } else {
-                             // let _ = webview.navigate("about:blank");
+                             // Load landing page for new tabs (from exe directory)
+                             if let Ok(exe_path) = std::env::current_exe() {
+                                 if let Some(exe_dir) = exe_path.parent() {
+                                     let landing_path = exe_dir.join("landing.html");
+                                     let landing_url = format!("file:///{}", landing_path.to_str().unwrap().replace("\\", "/"));
+                                     let _ = webview.navigate(&landing_url);
+                                 }
+                             }
                          }
                     }
                 });

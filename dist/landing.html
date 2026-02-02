@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flextra</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: #0a0a0c;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        /* SVG Scribble Animation */
+        .logo-svg {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin-bottom: 2rem;
+        }
+
+        .logo-svg path {
+            fill: none;
+            stroke: #f4f4f5;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: scribble 3s ease forwards;
+        }
+
+        /* Staggered animation for each letter */
+        .logo-svg .letter-f {
+            animation-delay: 0s;
+        }
+
+        .logo-svg .letter-l {
+            animation-delay: 0.4s;
+        }
+
+        .logo-svg .letter-x {
+            animation-delay: 0.8s;
+        }
+
+        .logo-svg .letter-t {
+            animation-delay: 1.2s;
+        }
+
+        .logo-svg .letter-r {
+            animation-delay: 1.6s;
+        }
+
+        .logo-svg .letter-a {
+            animation-delay: 2s;
+        }
+
+        @keyframes scribble {
+            0% {
+                stroke-dashoffset: 1000;
+                opacity: 0.3;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            100% {
+                stroke-dashoffset: 0;
+                opacity: 1;
+            }
+        }
+
+        /* Pen/pencil cursor that follows the drawing */
+        .pen {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            opacity: 0;
+            animation: penMove 3s ease forwards;
+        }
+
+        /* Glow behind logo */
+        .glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 200px;
+            background: radial-gradient(ellipse, rgba(79, 70, 229, 0.2) 0%, transparent 70%);
+            pointer-events: none;
+            opacity: 0;
+            animation: glowIn 1s ease 2.5s forwards;
+        }
+
+        @keyframes glowIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Tagline */
+        .tagline {
+            font-size: 1.1rem;
+            color: #71717a;
+            margin-bottom: 2rem;
+            opacity: 0;
+            animation: fadeUp 0.8s ease 3s forwards;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* CTA */
+        .cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.875rem 1.75rem;
+            background: #4f46e5;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            opacity: 0;
+            animation: fadeUp 0.8s ease 3.3s forwards;
+            transition: background 0.2s, transform 0.2s;
+        }
+
+        .cta:hover {
+            background: #6366f1;
+            transform: translateY(-2px);
+        }
+
+        /* Subtle particles */
+        .particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: #4f46e5;
+            border-radius: 50%;
+            opacity: 0.4;
+            pointer-events: none;
+            animation: float 15s linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.4;
+            }
+
+            90% {
+                opacity: 0.4;
+            }
+
+            100% {
+                transform: translateY(-100vh);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div style="position: relative;">
+            <div class="glow"></div>
+
+            <!-- Hand-drawn FLXTRA SVG with scribble paths -->
+            <svg class="logo-svg" viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg">
+                <!-- F - vertical + two horizontal strokes -->
+                <path class="letter-f" d="M20,100 L20,20 M20,20 L70,20 M20,55 L55,55" />
+
+                <!-- L - vertical + horizontal -->
+                <path class="letter-l" d="M90,20 L90,100 L140,100" />
+
+                <!-- X - two diagonal strokes -->
+                <path class="letter-x" d="M160,20 L210,100 M210,20 L160,100" />
+
+                <!-- T - horizontal + vertical -->
+                <path class="letter-t" d="M230,20 L290,20 M260,20 L260,100" />
+
+                <!-- R - vertical + curved top + diagonal leg (simplified) -->
+                <path class="letter-r"
+                    d="M310,100 L310,20 L340,20 Q360,20 360,45 Q360,60 340,60 L310,60 M340,60 L370,100" />
+
+                <!-- A - two diagonals + horizontal bar -->
+                <path class="letter-a" d="M390,100 L420,20 L450,100 M400,70 L440,70" />
+            </svg>
+        </div>
+
+        <p class="tagline">The browser that thinks ahead</p>
+
+        <a href="#" class="cta">
+            Get Started →
+        </a>
+    </div>
+
+    <script>
+        // Create floating particles
+        for (let i = 0; i < 20; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDelay = Math.random() * 15 + 's';
+            document.body.appendChild(p);
+        }
+    </script>
+</body>
+
+</html>
