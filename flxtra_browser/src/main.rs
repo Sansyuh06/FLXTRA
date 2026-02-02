@@ -377,6 +377,42 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                 });
                             }
                         },
+                        "toggle-ai" => {
+                            // Show Marceline AI panel - inject into active tab
+                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
+                            STATE.with(|s| {
+                                if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
+                                    if let Ok(wv) = ctrl.get_webview() {
+                                        let ai_panel_js = r#"
+                                            (function() {
+                                                if (document.getElementById('marceline-panel')) {
+                                                    document.getElementById('marceline-panel').remove();
+                                                    return;
+                                                }
+                                                const panel = document.createElement('div');
+                                                panel.id = 'marceline-panel';
+                                                panel.innerHTML = `
+                                                    <div style="position:fixed;top:20px;right:20px;width:320px;background:#111113;border:1px solid #252529;border-radius:12px;padding:16px;font-family:Inter,system-ui,sans-serif;color:#e4e4e7;z-index:999999;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                                            <span style="font-weight:600;color:#a855f7;">✦ Marceline</span>
+                                                            <button onclick="this.closest('#marceline-panel').remove()" style="background:none;border:none;color:#71717a;cursor:pointer;font-size:16px;">×</button>
+                                                        </div>
+                                                        <div style="font-size:13px;color:#a1a1aa;margin-bottom:12px;">What would you like me to do?</div>
+                                                        <div style="display:flex;flex-direction:column;gap:8px;">
+                                                            <button onclick="window.chrome?.webview?.postMessage({command:'ai-action',data:'summarize'})" style="padding:10px;background:#1a1a1e;border:1px solid #252529;border-radius:8px;color:#e4e4e7;cursor:pointer;text-align:left;">📝 Summarize this page</button>
+                                                            <button onclick="window.chrome?.webview?.postMessage({command:'ai-action',data:'explain'})" style="padding:10px;background:#1a1a1e;border:1px solid #252529;border-radius:8px;color:#e4e4e7;cursor:pointer;text-align:left;">💡 Explain like I'm 12</button>
+                                                            <button onclick="window.chrome?.webview?.postMessage({command:'ai-action',data:'privacy'})" style="padding:10px;background:#1a1a1e;border:1px solid #252529;border-radius:8px;color:#e4e4e7;cursor:pointer;text-align:left;">🔒 Analyze privacy risks</button>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                                document.body.appendChild(panel);
+                                            })();
+                                        "#;
+                                        let _ = wv.execute_script(ai_panel_js, |_| Ok(()));
+                                    }
+                                }
+                            });
+                        },
                         "ai-scan" => {
                             // Trigger analysis on active tab
                              let active_id = STATE.with(|s| s.borrow().active_tab_id);
@@ -642,10 +678,38 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             });
             LRESULT(0)
         }
+        WM_CLOSE => {
+            // Privacy: Clean up all session data before exit
+            cleanup_session_data();
+            DestroyWindow(hwnd).ok();
+            LRESULT(0)
+        }
         WM_DESTROY => {
             PostQuitMessage(0);
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
+/// Delete all ephemeral tab profiles to ensure privacy
+fn cleanup_session_data() {
+    if let Ok(cwd) = std::env::current_dir() {
+        let user_data_dir = cwd.join("user_data");
+        if user_data_dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(&user_data_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                            if name.starts_with("tab_") {
+                                let _ = std::fs::remove_dir_all(&path);
+                                info!("Cleaned up session: {}", name);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -5,21 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flextra</title>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* 8-Bit Color Palette */
-            --bg-dark: #1a1c2c;
-            --bg-mid: #262b44;
-            --bg-light: #3a4466;
-            --border: #5d6b98;
-            --text: #c0cbdc;
-            --text-dim: #8b9bb4;
-            --accent: #f4a261;
-            --accent-alt: #e76f51;
-            --mint: #57c4ad;
-            --purple: #9b6dff;
-            --pixel-shadow: #13141f;
+            --bg: #0a0a0c;
+            --surface: #111113;
+            --elevated: #1a1a1e;
+            --border: #252529;
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --success: #22c55e;
+            --purple: #a855f7;
         }
 
         * {
@@ -29,40 +27,56 @@
         }
 
         body {
-            font-family: 'VT323', monospace;
-            background: var(--bg-dark);
+            font-family: 'Inter', system-ui, sans-serif;
+            background: linear-gradient(180deg, var(--bg) 0%, #0d0d10 100%);
             color: var(--text);
             height: 90px;
             overflow: hidden;
-            image-rendering: pixelated;
+            -webkit-font-smoothing: antialiased;
         }
 
         .chrome {
             height: 100%;
             display: flex;
             flex-direction: column;
-            border-bottom: 3px solid var(--border);
-            box-shadow: inset 0 -3px 0 var(--pixel-shadow);
+            border-bottom: 1px solid var(--border);
         }
 
-        /* Toolbar */
         .toolbar {
             display: flex;
             align-items: center;
             height: 48px;
-            padding: 0 8px;
-            gap: 8px;
-            background: var(--bg-mid);
-            border-bottom: 2px solid var(--border);
+            padding: 0 12px;
+            gap: 10px;
         }
 
         .brand {
-            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 12px;
+            border-right: 1px solid var(--border);
+        }
+
+        .brand-text {
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .privacy-badge {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 6px;
             font-size: 10px;
-            color: var(--accent);
-            padding: 0 12px;
-            border-right: 2px solid var(--border);
-            text-shadow: 2px 2px 0 var(--pixel-shadow);
+            color: var(--success);
+            font-weight: 500;
         }
 
         .nav {
@@ -71,49 +85,46 @@
         }
 
         .nav-btn {
-            width: 28px;
-            height: 28px;
-            background: var(--bg-light);
-            border: 2px solid var(--border);
-            color: var(--text);
+            width: 30px;
+            height: 30px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-dim);
             font-size: 14px;
             cursor: pointer;
             display: grid;
             place-items: center;
-            transition: all 100ms;
-            box-shadow: 2px 2px 0 var(--pixel-shadow);
+            transition: all 0.2s;
         }
 
         .nav-btn:hover {
-            background: var(--accent);
-            color: var(--bg-dark);
+            background: var(--elevated);
+            color: var(--text);
+            border-color: var(--accent);
         }
 
-        .nav-btn:active {
-            transform: translate(2px, 2px);
-            box-shadow: none;
-        }
-
-        /* Omnibox */
         .omnibox {
             flex: 1;
-            height: 32px;
+            height: 34px;
             display: flex;
             align-items: center;
-            background: var(--bg-dark);
-            border: 2px solid var(--border);
-            padding: 0 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0 12px;
             gap: 8px;
-            box-shadow: inset 2px 2px 0 var(--pixel-shadow);
+            transition: all 0.2s;
         }
 
         .omnibox:focus-within {
-            border-color: var(--mint);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
         .omnibox .lock {
-            font-size: 12px;
-            color: var(--mint);
+            font-size: 11px;
+            color: var(--success);
         }
 
         .omnibox input {
@@ -121,50 +132,48 @@
             background: transparent;
             border: none;
             outline: none;
-            font-family: 'VT323', monospace;
-            font-size: 18px;
+            font-family: inherit;
+            font-size: 13px;
             color: var(--text);
-            letter-spacing: 1px;
         }
 
         .omnibox input::placeholder {
             color: var(--text-dim);
         }
 
-        /* AI Button - Marceline */
         .ai-btn {
-            height: 32px;
+            height: 34px;
             padding: 0 14px;
-            background: var(--purple);
-            border: 2px solid var(--border);
+            background: linear-gradient(135deg, var(--purple) 0%, #7c3aed 100%);
+            border: none;
+            border-radius: 10px;
             color: #fff;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 8px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 6px;
-            box-shadow: 2px 2px 0 var(--pixel-shadow);
-            transition: all 100ms;
+            transition: all 0.2s;
         }
 
         .ai-btn:hover {
-            background: #b794ff;
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
-        .ai-btn:active {
-            transform: translate(2px, 2px);
-            box-shadow: none;
-        }
-
-        /* Tab Bar */
         .tabbar {
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             height: 40px;
-            padding: 0 8px;
-            gap: 4px;
-            background: var(--bg-dark);
+            padding: 0 12px 8px;
+            gap: 6px;
+            overflow-x: auto;
+        }
+
+        .tabbar::-webkit-scrollbar {
+            display: none;
         }
 
         .tab {
@@ -173,40 +182,39 @@
             height: 30px;
             padding: 0 12px;
             gap: 8px;
-            background: var(--bg-mid);
-            border: 2px solid var(--border);
-            border-bottom: none;
-            font-family: 'VT323', monospace;
-            font-size: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 12px;
             color: var(--text-dim);
             cursor: pointer;
-            position: relative;
-            top: 2px;
-            box-shadow: 2px 0 0 var(--pixel-shadow);
+            white-space: nowrap;
+            transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .tab:hover {
+            background: var(--elevated);
             color: var(--text);
-            background: var(--bg-light);
         }
 
         .tab.active {
-            background: var(--bg-dark);
-            color: var(--accent);
-            border-bottom: 2px solid var(--bg-dark);
-            top: 0;
-            box-shadow: none;
-        }
-
-        .tab .favicon {
-            font-size: 12px;
+            background: var(--elevated);
+            border-color: var(--accent);
+            color: var(--text);
+            box-shadow: 0 0 8px var(--accent-glow);
         }
 
         .tab .close {
-            font-size: 14px;
+            width: 14px;
+            height: 14px;
+            display: grid;
+            place-items: center;
+            font-size: 10px;
             color: var(--text-dim);
-            margin-left: 4px;
+            border-radius: 4px;
             opacity: 0;
+            transition: all 0.15s;
         }
 
         .tab:hover .close {
@@ -214,25 +222,28 @@
         }
 
         .tab .close:hover {
-            color: var(--accent-alt);
+            background: #ef4444;
+            color: #fff;
         }
 
         .new-tab {
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             display: grid;
             place-items: center;
             background: transparent;
-            border: 2px dashed var(--border);
+            border: 1px dashed var(--border);
+            border-radius: 8px;
             color: var(--text-dim);
             font-size: 16px;
             cursor: pointer;
-            margin-bottom: 2px;
+            flex-shrink: 0;
+            transition: all 0.2s;
         }
 
         .new-tab:hover {
-            background: var(--bg-mid);
-            border-style: solid;
+            background: var(--accent-glow);
+            border-color: var(--accent);
             color: var(--accent);
         }
     </style>
@@ -241,32 +252,35 @@
 <body>
     <div class="chrome">
         <div class="toolbar">
-            <span class="brand">FLEXTRA</span>
+            <div class="brand">
+                <span class="brand-text">Flextra</span>
+                <div class="privacy-badge">
+                    <span>🛡</span> Private
+                </div>
+            </div>
 
             <div class="nav">
-                <button class="nav-btn" onclick="sendCommand('back')" title="Back">◄</button>
-                <button class="nav-btn" onclick="sendCommand('forward')" title="Forward">►</button>
-                <button class="nav-btn" onclick="sendCommand('reload')" title="Reload">↻</button>
+                <button class="nav-btn" onclick="sendCommand('back')">←</button>
+                <button class="nav-btn" onclick="sendCommand('forward')">→</button>
+                <button class="nav-btn" onclick="sendCommand('reload')">↻</button>
             </div>
 
             <div class="omnibox">
-                <span class="lock">■</span>
-                <input type="text" id="urlInput" placeholder="ENTER URL OR SEARCH..."
+                <span class="lock">●</span>
+                <input type="text" placeholder="Search or enter address"
                     onkeydown="if(event.key==='Enter') navigate(this.value)">
             </div>
 
-            <button class="ai-btn" onclick="toggleAI()">
-                ♦ MARCELINE
-            </button>
+            <button class="ai-btn" onclick="toggleAI()">✦ Marceline</button>
         </div>
 
         <div class="tabbar" id="tabbar">
             <div class="tab active">
-                <span class="favicon">►</span>
-                <span>NEW TAB</span>
+                <span>●</span>
+                <span>New Tab</span>
                 <span class="close">×</span>
             </div>
-            <button class="new-tab" onclick="sendCommand('new-tab')" title="New Tab">+</button>
+            <button class="new-tab" onclick="sendCommand('new-tab')">+</button>
         </div>
     </div>
 
@@ -300,12 +314,12 @@
             const bar = document.getElementById('tabbar');
             const html = tabs.map((t, i) => `
                 <div class="tab ${t.active ? 'active' : ''}" onclick="switchTab(${i})">
-                    <span class="favicon">${t.url ? '►' : '○'}</span>
-                    <span>${escapeHtml((t.title || 'NEW TAB').toUpperCase().slice(0, 20))}</span>
+                    <span>${t.url ? '●' : '○'}</span>
+                    <span>${escapeHtml((t.title || 'New Tab').slice(0, 24))}</span>
                     <span class="close" onclick="closeTab(${i}, event)">×</span>
                 </div>
             `).join('');
-            bar.innerHTML = html + `<button class="new-tab" onclick="sendCommand('new-tab')" title="New Tab">+</button>`;
+            bar.innerHTML = html + `<button class="new-tab" onclick="sendCommand('new-tab')">+</button>`;
         }
 
         function escapeHtml(s) {
