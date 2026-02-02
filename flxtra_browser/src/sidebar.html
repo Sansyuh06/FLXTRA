@@ -5,8 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flextra</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
     <style>
+        :root {
+            /* 8-Bit Color Palette */
+            --bg-dark: #1a1c2c;
+            --bg-mid: #262b44;
+            --bg-light: #3a4466;
+            --border: #5d6b98;
+            --text: #c0cbdc;
+            --text-dim: #8b9bb4;
+            --accent: #f4a261;
+            --accent-alt: #e76f51;
+            --mint: #57c4ad;
+            --purple: #9b6dff;
+            --pixel-shadow: #13141f;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,91 +29,91 @@
         }
 
         body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: #0c0c0e;
-            color: #e4e4e7;
+            font-family: 'VT323', monospace;
+            background: var(--bg-dark);
+            color: var(--text);
             height: 90px;
             overflow: hidden;
-            -webkit-font-smoothing: antialiased;
+            image-rendering: pixelated;
         }
 
         .chrome {
             height: 100%;
             display: flex;
             flex-direction: column;
-            border-bottom: 1px solid #1f1f23;
+            border-bottom: 3px solid var(--border);
+            box-shadow: inset 0 -3px 0 var(--pixel-shadow);
         }
 
-        /* Main toolbar row */
+        /* Toolbar */
         .toolbar {
             display: flex;
             align-items: center;
             height: 48px;
-            padding: 0 12px;
+            padding: 0 8px;
             gap: 8px;
+            background: var(--bg-mid);
+            border-bottom: 2px solid var(--border);
         }
 
-        /* Brand */
         .brand {
-            font-weight: 600;
-            font-size: 15px;
-            color: #fff;
-            padding-right: 8px;
-            border-right: 1px solid #27272a;
-            margin-right: 4px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px;
+            color: var(--accent);
+            padding: 0 12px;
+            border-right: 2px solid var(--border);
+            text-shadow: 2px 2px 0 var(--pixel-shadow);
         }
 
-        /* Navigation */
         .nav {
             display: flex;
-            gap: 2px;
+            gap: 4px;
         }
 
-        .nav button {
-            width: 32px;
-            height: 32px;
-            background: transparent;
-            border: none;
-            border-radius: 8px;
-            color: #71717a;
-            font-size: 16px;
+        .nav-btn {
+            width: 28px;
+            height: 28px;
+            background: var(--bg-light);
+            border: 2px solid var(--border);
+            color: var(--text);
+            font-size: 14px;
             cursor: pointer;
             display: grid;
             place-items: center;
-            transition: background 0.15s, color 0.15s;
+            transition: all 100ms;
+            box-shadow: 2px 2px 0 var(--pixel-shadow);
         }
 
-        .nav button:hover {
-            background: #18181b;
-            color: #fafafa;
+        .nav-btn:hover {
+            background: var(--accent);
+            color: var(--bg-dark);
         }
 
-        .nav button:active {
-            background: #27272a;
+        .nav-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
         }
 
-        /* URL Bar */
+        /* Omnibox */
         .omnibox {
             flex: 1;
-            height: 34px;
+            height: 32px;
             display: flex;
             align-items: center;
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 10px;
-            padding: 0 12px;
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            padding: 0 10px;
             gap: 8px;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            box-shadow: inset 2px 2px 0 var(--pixel-shadow);
         }
 
         .omnibox:focus-within {
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+            border-color: var(--mint);
         }
 
         .omnibox .lock {
-            color: #22c55e;
             font-size: 12px;
+            color: var(--mint);
         }
 
         .omnibox input {
@@ -106,53 +121,50 @@
             background: transparent;
             border: none;
             outline: none;
-            font-family: inherit;
-            font-size: 13px;
-            color: #e4e4e7;
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+            color: var(--text);
+            letter-spacing: 1px;
         }
 
         .omnibox input::placeholder {
-            color: #52525b;
+            color: var(--text-dim);
         }
 
-        /* AI Button */
-        .ai-trigger {
-            height: 34px;
-            padding: 0 16px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            border: none;
-            border-radius: 10px;
+        /* AI Button - Marceline */
+        .ai-btn {
+            height: 32px;
+            padding: 0 14px;
+            background: var(--purple);
+            border: 2px solid var(--border);
             color: #fff;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 500;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
             gap: 6px;
-            transition: opacity 0.15s, transform 0.1s;
+            box-shadow: 2px 2px 0 var(--pixel-shadow);
+            transition: all 100ms;
         }
 
-        .ai-trigger:hover {
-            opacity: 0.9;
+        .ai-btn:hover {
+            background: #b794ff;
         }
 
-        .ai-trigger:active {
-            transform: scale(0.98);
+        .ai-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
         }
 
-        /* Tab bar */
+        /* Tab Bar */
         .tabbar {
             display: flex;
-            align-items: center;
-            height: 38px;
-            padding: 0 12px 6px;
-            gap: 6px;
-            overflow-x: auto;
-        }
-
-        .tabbar::-webkit-scrollbar {
-            display: none;
+            align-items: flex-end;
+            height: 40px;
+            padding: 0 8px;
+            gap: 4px;
+            background: var(--bg-dark);
         }
 
         .tab {
@@ -161,70 +173,67 @@
             height: 30px;
             padding: 0 12px;
             gap: 8px;
-            background: #18181b;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #a1a1aa;
+            background: var(--bg-mid);
+            border: 2px solid var(--border);
+            border-bottom: none;
+            font-family: 'VT323', monospace;
+            font-size: 16px;
+            color: var(--text-dim);
             cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.15s, color 0.15s;
-            border: 1px solid transparent;
+            position: relative;
+            top: 2px;
+            box-shadow: 2px 0 0 var(--pixel-shadow);
         }
 
         .tab:hover {
-            background: #27272a;
-            color: #e4e4e7;
+            color: var(--text);
+            background: var(--bg-light);
         }
 
         .tab.active {
-            background: #27272a;
-            border-color: #6366f1;
-            color: #fff;
+            background: var(--bg-dark);
+            color: var(--accent);
+            border-bottom: 2px solid var(--bg-dark);
+            top: 0;
+            box-shadow: none;
         }
 
         .tab .favicon {
-            font-size: 11px;
+            font-size: 12px;
         }
 
         .tab .close {
-            width: 16px;
-            height: 16px;
-            display: grid;
-            place-items: center;
-            font-size: 12px;
-            color: #52525b;
-            border-radius: 4px;
+            font-size: 14px;
+            color: var(--text-dim);
             margin-left: 4px;
+            opacity: 0;
         }
 
         .tab:hover .close {
-            color: #a1a1aa;
+            opacity: 1;
         }
 
         .tab .close:hover {
-            background: #3f3f46;
-            color: #ef4444;
+            color: var(--accent-alt);
         }
 
         .new-tab {
-            width: 30px;
-            height: 30px;
+            width: 28px;
+            height: 28px;
             display: grid;
             place-items: center;
             background: transparent;
-            border: 1px dashed #3f3f46;
-            border-radius: 8px;
-            color: #52525b;
+            border: 2px dashed var(--border);
+            color: var(--text-dim);
             font-size: 16px;
             cursor: pointer;
-            transition: all 0.15s;
-            flex-shrink: 0;
+            margin-bottom: 2px;
         }
 
         .new-tab:hover {
-            background: #18181b;
-            border-color: #6366f1;
-            color: #6366f1;
+            background: var(--bg-mid);
+            border-style: solid;
+            color: var(--accent);
         }
     </style>
 </head>
@@ -232,29 +241,30 @@
 <body>
     <div class="chrome">
         <div class="toolbar">
-            <span class="brand">Flextra</span>
+            <span class="brand">FLEXTRA</span>
 
             <div class="nav">
-                <button onclick="sendCommand('back')" title="Back">←</button>
-                <button onclick="sendCommand('forward')" title="Forward">→</button>
-                <button onclick="sendCommand('reload')" title="Reload">↻</button>
+                <button class="nav-btn" onclick="sendCommand('back')" title="Back">◄</button>
+                <button class="nav-btn" onclick="sendCommand('forward')" title="Forward">►</button>
+                <button class="nav-btn" onclick="sendCommand('reload')" title="Reload">↻</button>
             </div>
 
             <div class="omnibox">
-                <span class="lock">🔒</span>
-                <input type="text" id="urlInput" placeholder="Search or enter address"
+                <span class="lock">■</span>
+                <input type="text" id="urlInput" placeholder="ENTER URL OR SEARCH..."
                     onkeydown="if(event.key==='Enter') navigate(this.value)">
             </div>
 
-            <button class="ai-trigger" onclick="toggleAI()">
-                <span>✨</span> Lyra
+            <button class="ai-btn" onclick="toggleAI()">
+                ♦ MARCELINE
             </button>
         </div>
 
         <div class="tabbar" id="tabbar">
             <div class="tab active">
-                <span class="favicon">🌐</span>
-                <span>New Tab</span>
+                <span class="favicon">►</span>
+                <span>NEW TAB</span>
+                <span class="close">×</span>
             </div>
             <button class="new-tab" onclick="sendCommand('new-tab')" title="New Tab">+</button>
         </div>
@@ -272,7 +282,6 @@
         }
 
         function switchTab(idx) { sendCommand('switch-tab', idx); }
-
         function toggleAI() { sendCommand('toggle-ai'); }
 
         function closeTab(idx, e) {
@@ -291,8 +300,8 @@
             const bar = document.getElementById('tabbar');
             const html = tabs.map((t, i) => `
                 <div class="tab ${t.active ? 'active' : ''}" onclick="switchTab(${i})">
-                    <span class="favicon">${t.url ? '🌐' : '📄'}</span>
-                    <span>${escapeHtml((t.title || 'New Tab').slice(0, 24))}</span>
+                    <span class="favicon">${t.url ? '►' : '○'}</span>
+                    <span>${escapeHtml((t.title || 'NEW TAB').toUpperCase().slice(0, 20))}</span>
                     <span class="close" onclick="closeTab(${i}, event)">×</span>
                 </div>
             `).join('');
