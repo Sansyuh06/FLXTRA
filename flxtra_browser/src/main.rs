@@ -32,9 +32,9 @@ fn to_wstring(s: &str) -> Vec<u16> {
 static FILTER_ENGINE: Lazy<Arc<FilterEngine>> = Lazy::new(|| Arc::new(FilterEngine::new()));
 
 // AI Service - Ollama Integration
-fn call_ai(prompt: &str, action: &str) -> String {
+fn call_ai(prompt: &str, action: &str, context: &str) -> String {
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(45))
         .build()
         .ok();
     
@@ -42,6 +42,7 @@ fn call_ai(prompt: &str, action: &str) -> String {
         "summarize" => format!("Summarize this webpage content in 3 concise bullet points:\n\n{}", prompt),
         "explain" => format!("Explain this webpage content in simple terms that a 12-year-old could understand:\n\n{}", prompt),
         "keypoints" => format!("Extract the 5 most important facts from this content as a numbered list:\n\n{}", prompt),
+        "ask" => format!("Context from webpage:\n{}\n\nQuestion: {}\n\nAnswer the question based on the context above:", context, prompt),
         _ => format!("Analyze this content:\n\n{}", prompt),
     };
     
@@ -63,6 +64,10 @@ fn call_ai(prompt: &str, action: &str) -> String {
         }
     }
     
+    if action == "ask" {
+        return "Unable to answer. Please ensure Ollama is running locally.".to_string();
+    }
+    
     // Fallback: Simple extractive summary
     let sentences: Vec<&str> = prompt.split(|c| c == '.' || c == '!' || c == '?')
         .filter(|s| s.len() > 20)
@@ -76,8 +81,43 @@ fn call_ai(prompt: &str, action: &str) -> String {
     }
 }
 
-// Sidebar width
-const SIDEBAR_WIDTH: i32 = 260;
+// Agent Planner - Ollama ReAct
+fn call_agent_planner(goal: &str, dom: &[DOMItem]) -> Option<AgentPlan> {
+    let dom_desc = dom.iter()
+        .take(50) // Limit context
+        .map(|d| format!("[{}] {} '{}'", d.id, d.tag, d.label))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let prompt = format!(
+        "Goal: \"{}\"\n\nVisible Interactive Elements:\n{}\n\nReturn the NEXT step as a JSON object with fields: action (click/type), target (id), value (optional), description (short reason). JSON ONLY.",
+        goal, dom_desc
+    );
+
+    let client = reqwest::blocking::Client::new();
+    if let Ok(res) = client.post("http://localhost:11434/api/generate")
+        .json(&serde_json::json!({
+            "model": "mistral",
+            "prompt": prompt,
+            "stream": false,
+            "format": "json"
+        }))
+        .send() 
+    {
+        if let Ok(body) = res.json::<serde_json::Value>() {
+            if let Some(resp_str) = body["response"].as_str() {
+                // Try parsing JSON
+                if let Ok(plan) = serde_json::from_str::<AgentPlan>(resp_str) {
+                    return Some(plan);
+                }
+            }
+        }
+    }
+    None
+}
+
+// Topbar height (horizontal layout)
+const TOPBAR_HEIGHT: i32 = 90;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 struct TabInfo {
@@ -86,6 +126,23 @@ struct TabInfo {
     url: String,
     favicon: Option<String>,
     active: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DOMItem {
+    id: u32,
+    tag: String,
+    label: String,
+    #[serde(default)]
+    value: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct AgentPlan {
+    action: String, // click, type, scroll
+    target: u32,
+    value: Option<String>,
+    description: String,
 }
 
 impl TabInfo {
@@ -107,6 +164,7 @@ struct BrowserState {
     content_controllers: HashMap<Uuid, Rc<Controller>>,
     tabs: Vec<TabInfo>,
     active_tab_id: Uuid,
+    pending_plan: Option<AgentPlan>,
 }
 
 impl BrowserState {
@@ -118,6 +176,7 @@ impl BrowserState {
             content_controllers: HashMap::new(),
             tabs: vec![initial_tab.clone()],
             active_tab_id: initial_tab.id,
+            pending_plan: None,
         };
         // state.load_session(); // Disabled temporarily while refactoring structure
         state
@@ -145,7 +204,7 @@ impl BrowserState {
         let height = rect.bottom - rect.top;
         
         let visible_rect = winapi::shared::windef::RECT {
-            left: SIDEBAR_WIDTH, top: 0,
+            left: 0, top: TOPBAR_HEIGHT,
             right: width, bottom: height
         };
         
@@ -171,7 +230,7 @@ thread_local! {
 
 fn main() -> anyhow::Result<()> {
     fmt().with_env_filter(EnvFilter::from_default_env().add_directive("Flxtra=info".parse()?)).init();
-    info!("Starting Flxtra Comet Edition (Isolated Mode)...");
+    info!("Starting Flextra Browser...");
 
     unsafe {
         let instance = GetModuleHandleW(None)?;
@@ -193,7 +252,7 @@ fn main() -> anyhow::Result<()> {
         let hwnd_res = CreateWindowExW(
             WINDOW_EX_STYLE::default(),
             PCWSTR(class_base.as_ptr()),
-            PCWSTR(to_wstring("Flxtra Browser").as_ptr()),
+            PCWSTR(to_wstring("Flextra").as_ptr()),
             WS_OVERLAPPEDWINDOW | WS_VISIBLE,
             CW_USEDEFAULT, CW_USEDEFAULT,
             1400, 900,
@@ -239,8 +298,8 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             unsafe { GetClientRect(hwnd, &mut rect); }
             let side_rect = winapi::shared::windef::RECT {
                 left: 0, top: 0,
-                right: SIDEBAR_WIDTH,
-                bottom: rect.bottom - rect.top,
+                right: rect.right - rect.left,
+                bottom: TOPBAR_HEIGHT,
             };
             ctrl.put_bounds(side_rect)?;
             
@@ -336,21 +395,30 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                  }
                              });
                         },
-                        "ai-summarize" | "ai-explain" | "ai-keypoints" => {
-                            let action = cmd.replace("ai-", "");
+                        "ai-summarize" | "ai-explain" | "ai-keypoints" | "ai-ask" => {
+                            let action = if cmd == "ai-ask" { "ask" } else { &cmd[3..] };
+                            let question = if cmd == "ai-ask" {
+                                val["data"].as_str().unwrap_or("").to_string()
+                            } else {
+                                String::new()
+                            };
+
                             let active_id = STATE.with(|s| s.borrow().active_tab_id);
                             STATE.with(|s| {
                                 if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
                                     if let Ok(wv) = ctrl.get_webview() {
                                         let sidebar_ctrl = s.borrow().sidebar_controller.clone();
-                                        let action_clone = action.clone();
+                                        let action_clone = action.to_string();
                                         
                                         wv.execute_script("document.body.innerText", move |text_json| {
                                             let text: String = serde_json::from_str(&text_json).unwrap_or_default();
                                             let truncated = if text.len() > 4000 { &text[..4000] } else { &text };
                                             
                                             // Call AI service
-                                            let result = call_ai(truncated, &action_clone);
+                                            let prompt = if action_clone == "ask" { &question } else { truncated };
+                                            let context = if action_clone == "ask" { truncated } else { "" };
+                                            
+                                            let result = call_ai(prompt, &action_clone, context);
                                             
                                             if let Some(sb_ctrl) = &sidebar_ctrl {
                                                 if let Ok(sb_wv) = sb_ctrl.get_webview() {
@@ -367,6 +435,73 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                     }
                                 }
                             });
+                        },
+                        "agent-start" => {
+                            let goal = val["data"].as_str().unwrap_or("").to_string();
+                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
+                            
+                            STATE.with(|s| {
+                                if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
+                                    if let Ok(wv) = ctrl.get_webview() {
+                                        let sidebar_ctrl = s.borrow().sidebar_controller.clone();
+                                        
+                                        // Load scanner script
+                                        let script = std::fs::read_to_string("flxtra_browser/src/agent_scanner.js")
+                                            .unwrap_or_else(|_| "[]".to_string());
+                                            
+                                        wv.execute_script(&script, move |dom_json| {
+                                            let dom: Vec<DOMItem> = serde_json::from_str(&dom_json).unwrap_or_default();
+                                            
+                                            // Call Planner
+                                            if let Some(plan) = call_agent_planner(&goal, &dom) {
+                                                // Store plan
+                                                STATE.with(|s| s.borrow_mut().pending_plan = Some(plan.clone()));
+                                                
+                                                // Notify Sidebar
+                                                if let Some(sb_ctrl) = &sidebar_ctrl {
+                                                    if let Ok(sb_wv) = sb_ctrl.get_webview() {
+                                                        let response = serde_json::json!({
+                                                            "type": "agent-plan",
+                                                            "plan": plan
+                                                        });
+                                                        let _ = sb_wv.post_web_message_as_json(&response.to_string());
+                                                    }
+                                                }
+                                            }
+                                            Ok(())
+                                        }).unwrap();
+                                    }
+                                }
+                            });
+                        },
+                        "agent-confirm" => {
+                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
+                            let plan = STATE.with(|s| s.borrow().pending_plan.clone());
+                            
+                            if let Some(p) = plan {
+                                STATE.with(|s| {
+                                    if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
+                                        if let Ok(wv) = ctrl.get_webview() {
+                                            let script = match p.action.as_str() {
+                                                "click" => format!(
+                                                    "document.querySelector('[data-agent-id=\"{}\"]').click();", 
+                                                    p.target
+                                                ),
+                                                "type" => format!(
+                                                    "let el = document.querySelector('[data-agent-id=\"{}\"]'); if(el) {{ el.value = '{}'; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}", 
+                                                    p.target, p.value.unwrap_or_default()
+                                                ),
+                                                "scroll" => "window.scrollBy(0, 500);".to_string(),
+                                                _ => "".to_string()
+                                            };
+                                            
+                                            if !script.is_empty() {
+                                                let _ = wv.execute_script(&script, |_| Ok(()));
+                                            }
+                                        }
+                                    }
+                                });
+                            }
                         },
                         "navigate" => {
                             if let Some(url) = val["data"].as_str() {
@@ -462,11 +597,11 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                 let state = s.borrow();
                 let mut rect = RECT::default();
                 let _ = GetClientRect(hwnd, &mut rect);
-                let height = rect.bottom - rect.top;
+                let width = rect.right - rect.left;
 
-                // Resize sidebar
+                // Resize topbar
                 if let Some(side) = &state.sidebar_controller {
-                    let r = winapi::shared::windef::RECT { left: 0, top: 0, right: SIDEBAR_WIDTH, bottom: height };
+                    let r = winapi::shared::windef::RECT { left: 0, top: 0, right: width, bottom: TOPBAR_HEIGHT };
                     let _ = side.put_bounds(r);
                 }
                 
