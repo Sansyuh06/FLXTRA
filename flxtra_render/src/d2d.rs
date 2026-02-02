@@ -172,6 +172,14 @@ fn to_gdi_rect(rect: &Rect) -> RECT {
 
 impl Default for GdiRenderer {
     fn default() -> Self { 
-        Self::new().expect("Failed to create renderer") 
+        Self::new().unwrap_or_else(|e| {
+            tracing::error!("Failed to create renderer: {}", e);
+            Self {
+                hwnd: HWND::default(),
+                width: 0,
+                height: 0,
+                initialized: false,
+            }
+        })
     }
 }
