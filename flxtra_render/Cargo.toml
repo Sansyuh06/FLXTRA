@@ -9,3 +9,4 @@ flxtra_core = { path = "../flxtra_core" }
 flxtra_css = { path = "../flxtra_css" }
 flxtra_layout = { path = "../flxtra_layout" }
 tracing.workspace = true
+windows.workspace = true

@@ -478,6 +478,7 @@ dependencies = [
  "flxtra_css",
  "flxtra_layout",
  "tracing",
+ "windows",
 ]
 
 [[package]]
@@ -495,6 +496,8 @@ name = "flxtra_ui"
 version = "0.1.0"
 dependencies = [
  "flxtra_core",
+ "flxtra_css",
+ "flxtra_layout",
  "flxtra_render",
  "tracing",
  "windows",

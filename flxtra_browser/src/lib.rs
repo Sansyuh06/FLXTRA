@@ -7,5 +7,6 @@ mod tab;
 mod engine;
 
 pub use browser::Browser;
+pub use browser::PageState;
 pub use tab::Tab;
 pub use engine::RenderEngine;
