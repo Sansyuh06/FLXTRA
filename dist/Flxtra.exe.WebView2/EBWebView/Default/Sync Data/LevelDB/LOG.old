@@ -1,2 +1,3 @@
-2026/02/02-22:50:00.249 7284 Creating DB D:\fyeshi\project\OS\dist\Flxtra.exe.WebView2\EBWebView\Default\Sync Data\LevelDB since it was missing.
-2026/02/02-22:50:00.265 7284 Reusing MANIFEST D:\fyeshi\project\OS\dist\Flxtra.exe.WebView2\EBWebView\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/02/03-03:16:04.038 9258 Reusing MANIFEST D:\fyeshi\project\OS\dist\Flxtra.exe.WebView2\EBWebView\Default\Sync Data\LevelDB/MANIFEST-000001
+2026/02/03-03:16:04.039 9258 Recovering log #3
+2026/02/03-03:16:04.039 9258 Reusing old log D:\fyeshi\project\OS\dist\Flxtra.exe.WebView2\EBWebView\Default\Sync Data\LevelDB/000003.log 

@@ -6,17 +6,17 @@
 //! - First-party isolation
 //! - Integration with content filter
 
-use flxtra_core::{FlxtraError, HttpMethod, Origin, ResourceType, Result};
+use flxtra_core::{FlxtraError, HttpMethod, Result};
 use bytes::Bytes;
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, USER_AGENT},
-    Client, Response, StatusCode,
+    Client, Response,
 };
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Arc;
+
 use std::time::Duration;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// HTTP response data
 #[derive(Debug)]

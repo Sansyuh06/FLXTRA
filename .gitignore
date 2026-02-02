@@ -1,0 +1,24 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Browser Data
+/user_data/
+/debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build artifacts (optional, keeping dist if you want binaries in repo, otherwise uncomment)
+# /dist/
+# *.exe
+# *.pdb

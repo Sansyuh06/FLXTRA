@@ -3,7 +3,7 @@
 //! Combines DNS resolver, HTTP client, and content filter
 //! into a single privacy-focused network interface.
 
-use flxtra_core::{FlxtraError, HttpMethod, Origin, ResourceType, Result};
+use flxtra_core::{FlxtraError, Origin, ResourceType, Result};
 use flxtra_filter::FilterEngine;
 use std::sync::Arc;
 use tracing::{debug, info, warn};

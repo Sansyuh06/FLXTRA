@@ -1,7 +1,6 @@
 //! AdBlock Plus / uBlock filter syntax parser
 
-use crate::rules::{FilterRule, ResourceTypeOptions, RuleType};
-use std::collections::HashSet;
+use crate::rules::{FilterRule, RuleType};
 use tracing::debug;
 
 /// Parse filter list content into rules
