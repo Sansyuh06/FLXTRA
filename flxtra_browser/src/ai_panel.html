@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marceline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --surface: #111113;
+            --elevated: #1a1a1e;
+            --border: #252529;
+            --text: #e4e4e7;
+            --text-dim: #71717a;
+            --purple: #a855f7;
+            --purple-dim: rgba(168, 85, 247, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            border-left: 1px solid var(--border);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--purple);
+        }
+
+        .close-btn {
+            width: 28px;
+            height: 28px;
+            display: grid;
+            place-items: center;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .close-btn:hover {
+            background: var(--elevated);
+            color: var(--text);
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s;
+        }
+
+        .action-btn:hover {
+            background: var(--elevated);
+            border-color: var(--purple);
+        }
+
+        .action-btn .icon {
+            font-size: 16px;
+        }
+
+        .action-btn .label {
+            flex: 1;
+        }
+
+        .action-btn .desc {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        .chat-area {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .message {
+            padding: 12px;
+            background: var(--surface);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .message.ai {
+            background: var(--purple-dim);
+            border-left: 2px solid var(--purple);
+        }
+
+        .input-area {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .input-box {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-box input {
+            flex: 1;
+            height: 40px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .input-box input:focus {
+            outline: none;
+            border-color: var(--purple);
+        }
+
+        .input-box button {
+            height: 40px;
+            padding: 0 16px;
+            background: var(--purple);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .input-box button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="panel">
+        <div class="header">
+            <div class="title">
+                <span>✦</span>
+                <span>Marceline</span>
+            </div>
+            <button class="close-btn" onclick="sendCommand('toggle-ai')">×</button>
+        </div>
+
+        <div class="actions">
+            <button class="action-btn" onclick="sendAction('summarize')">
+                <span class="icon">📝</span>
+                <div>
+                    <div class="label">Summarize Page</div>
+                    <div class="desc">Get a quick overview</div>
+                </div>
+            </button>
+            <button class="action-btn" onclick="sendAction('explain')">
+                <span class="icon">💡</span>
+                <div>
+                    <div class="label">Explain Simply</div>
+                    <div class="desc">Like I'm 12 years old</div>
+                </div>
+            </button>
+            <button class="action-btn" onclick="sendAction('privacy')">
+                <span class="icon">🔒</span>
+                <div>
+                    <div class="label">Privacy Check</div>
+                    <div class="desc">Analyze trackers & risks</div>
+                </div>
+            </button>
+            <button class="action-btn" onclick="sendAction('keypoints')">
+                <span class="icon">📌</span>
+                <div>
+                    <div class="label">Key Points</div>
+                    <div class="desc">Extract main ideas</div>
+                </div>
+            </button>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="message ai">
+                👋 Hi! I'm Marceline. Click an action above or ask me anything about this page.
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-box">
+                <input type="text" id="userInput" placeholder="Ask about this page..."
+                    onkeydown="if(event.key==='Enter') sendQuestion()">
+                <button onclick="sendQuestion()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function sendCommand(cmd, data = null) {
+            if (window.chrome?.webview) {
+                window.chrome.webview.postMessage({ command: cmd, data });
+            }
+        }
+
+        function sendAction(action) {
+            addMessage('user', getActionLabel(action));
+            addMessage('ai', '⏳ Analyzing...');
+            sendCommand('ai-action', action);
+        }
+
+        function sendQuestion() {
+            const input = document.getElementById('userInput');
+            const q = input.value.trim();
+            if (!q) return;
+            addMessage('user', q);
+            addMessage('ai', '⏳ Thinking...');
+            sendCommand('ai-question', q);
+            input.value = '';
+        }
+
+        function getActionLabel(action) {
+            const labels = {
+                summarize: '📝 Summarize this page',
+                explain: '💡 Explain simply',
+                privacy: '🔒 Check privacy',
+                keypoints: '📌 Get key points'
+            };
+            return labels[action] || action;
+        }
+
+        function addMessage(type, text) {
+            const area = document.getElementById('chatArea');
+            const msg = document.createElement('div');
+            msg.className = 'message ' + type;
+            msg.textContent = text;
+            area.appendChild(msg);
+            area.scrollTop = area.scrollHeight;
+        }
+
+        if (window.chrome?.webview) {
+            window.chrome.webview.addEventListener('message', e => {
+                const { type, content } = e.data;
+                if (type === 'ai-response') {
+                    // Remove loading message and add response
+                    const area = document.getElementById('chatArea');
+                    const loading = area.querySelector('.message.ai:last-child');
+                    if (loading && loading.textContent.includes('⏳')) {
+                        loading.textContent = content;
+                    } else {
+                        addMessage('ai', content);
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
