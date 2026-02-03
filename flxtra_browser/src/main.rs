@@ -68,17 +68,15 @@ fn call_ai(prompt: &str, action: &str, context: &str) -> String {
         return "Unable to answer. Please ensure Ollama is running locally.".to_string();
     }
     
-    // Fallback: Simple extractive summary
-    let sentences: Vec<&str> = prompt.split(|c| c == '.' || c == '!' || c == '?')
-        .filter(|s| s.len() > 20)
-        .take(3)
-        .collect();
+    // Fallback: Inform user about Ollama requirement
+    let action_label = match action {
+        "summarize" => "summarize",
+        "explain" => "explain",
+        "keypoints" => "extract key points from",
+        _ => "analyze"
+    };
     
-    if sentences.is_empty() {
-        "Unable to analyze content. Please ensure Ollama is running locally.".to_string()
-    } else {
-        format!("• {}", sentences.join("\n• "))
-    }
+    format!("⚠️ **AI Offline**\n\nI couldn't {} this page because Ollama isn't running.\n\n**To enable AI:**\n1. Install Ollama: https://ollama.ai\n2. Run: `ollama serve`\n3. Download a model: `ollama pull mistral`\n\nThen try again!", action_label)
 }
 
 // Agent Planner - Ollama ReAct
@@ -718,6 +716,48 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                 }
                             });
                         },
+                        "agent-goal" => {
+                            // Agent Mode: Scan DOM, call planner, return plan
+                            let goal = val["data"].as_str().unwrap_or("").to_string();
+                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
+                            
+                            STATE.with(|s| {
+                                if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
+                                    if let Ok(wv) = ctrl.get_webview() {
+                                        // Load scanner script
+                                        let script = std::fs::read_to_string("flxtra_browser/src/agent_scanner.js")
+                                            .unwrap_or_else(|_| "JSON.stringify([])".to_string());
+                                        
+                                        let goal_clone = goal.clone();
+                                        
+                                        let _ = wv.execute_script(&script, move |dom_json| {
+                                            let dom: Vec<DOMItem> = serde_json::from_str(&dom_json).unwrap_or_default();
+                                            
+                                            // Call planner in background thread
+                                            let hwnd_raw = STATE.with(|s| s.borrow().hwnd).map(|h| h.0 as usize).unwrap_or(0);
+                                            if hwnd_raw != 0 {
+                                                std::thread::spawn(move || {
+                                                    let plan = call_agent_planner(&goal_clone, &dom);
+                                                    
+                                                    // Store plan for confirmation (on UI thread)
+                                                    let plan_json = serde_json::json!({
+                                                        "type": "agent-plan",
+                                                        "plan": plan
+                                                    }).to_string();
+                                                    
+                                                    // Send to UI thread via WM_APP+2
+                                                    let hwnd = HWND(hwnd_raw as *mut std::ffi::c_void);
+                                                    let boxed = Box::new(plan_json);
+                                                    let ptr = Box::into_raw(boxed);
+                                                    unsafe { PostMessageW(hwnd, WM_APP + 2, WPARAM(ptr as usize), LPARAM(0)); }
+                                                });
+                                            }
+                                            Ok(())
+                                        });
+                                    }
+                                }
+                            });
+                        },
                         _ => {}
                     }
                 }
@@ -842,6 +882,20 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                             "content": *text
                         });
                         let _ = wv.post_web_message_as_json(&msg.to_string());
+                    }
+                }
+            });
+            LRESULT(0)
+        }
+        msg if msg == WM_APP + 2 => {
+            // Agent Plan Received
+            let ptr = wparam.0 as *mut String;
+            let plan_json = unsafe { Box::from_raw(ptr) };
+            
+            STATE.with(|s| {
+                if let Some(ctrl) = &s.borrow().ai_sidebar_controller {
+                    if let Ok(wv) = ctrl.get_webview() {
+                        let _ = wv.post_web_message_as_json(&plan_json);
                     }
                 }
             });

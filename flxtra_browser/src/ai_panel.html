@@ -218,7 +218,20 @@
                     <div class="label">Key Points</div>
                     <div class="desc">Extract main ideas</div>
                 </div>
-            </button>
+        </div>
+
+        <!-- Agent Mode Section -->
+        <div class="actions" style="border-top: 1px solid var(--border); padding-top: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-bottom: 8px;">
+                <span style="font-size: 13px; color: var(--purple);">🤖 Agent Mode</span>
+                <span style="font-size: 11px; color: var(--text-dim);">Automate tasks</span>
+            </div>
+            <div class="input-box">
+                <input type="text" id="agentGoal" placeholder="e.g., Search for cute cat videos"
+                    onkeydown="if(event.key==='Enter') sendAgentGoal()">
+                <button onclick="sendAgentGoal()"
+                    style="background: linear-gradient(135deg, #a855f7, #6366f1);">Go</button>
+            </div>
         </div>
 
         <div class="chat-area" id="chatArea">
@@ -278,9 +291,19 @@
             area.scrollTop = area.scrollHeight;
         }
 
+        function sendAgentGoal() {
+            const input = document.getElementById('agentGoal');
+            const goal = input.value.trim();
+            if (!goal) return;
+            addMessage('user', '🤖 ' + goal);
+            addMessage('ai', '⏳ Scanning page and planning...');
+            sendCommand('agent-goal', goal);
+            input.value = '';
+        }
+
         if (window.chrome?.webview) {
             window.chrome.webview.addEventListener('message', e => {
-                const { type, content } = e.data;
+                const { type, content, plan } = e.data;
                 if (type === 'ai-response') {
                     // Remove loading message and add response
                     const area = document.getElementById('chatArea');
@@ -290,6 +313,23 @@
                     } else {
                         addMessage('ai', content);
                     }
+                } else if (type === 'agent-plan') {
+                    // Show plan and ask for confirmation
+                    const area = document.getElementById('chatArea');
+                    const loading = area.querySelector('.message.ai:last-child');
+                    const planText = plan ? `🎯 Plan: ${plan.action} on "${plan.description}"\n\nClick to confirm or type a new goal.` : '❌ Could not plan this action. Try rephrasing.';
+                    if (loading && loading.textContent.includes('⏳')) {
+                        loading.innerHTML = planText;
+                        if (plan) {
+                            const btn = document.createElement('button');
+                            btn.textContent = '✓ Do it';
+                            btn.style.cssText = 'margin-top:8px;padding:6px 12px;background:var(--purple);border:none;border-radius:6px;color:#fff;cursor:pointer;';
+                            btn.onclick = () => sendCommand('agent-confirm');
+                            loading.appendChild(btn);
+                        }
+                    }
+                } else if (type === 'agent-done') {
+                    addMessage('ai', '✅ Done! ' + content);
                 }
             });
         }
