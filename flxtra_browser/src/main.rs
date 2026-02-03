@@ -160,6 +160,8 @@ impl TabInfo {
 struct BrowserState {
     hwnd: Option<HWND>, // Store HWND for resizing
     sidebar_controller: Option<Rc<Controller>>,
+    ai_sidebar_controller: Option<Rc<Controller>>,  // Marceline AI panel
+    ai_sidebar_open: bool,                           // Toggle state
     // Map Tab ID -> Controller. Each controller has its own Environment (Profile)
     content_controllers: HashMap<Uuid, Rc<Controller>>,
     tabs: Vec<TabInfo>,
@@ -173,6 +175,8 @@ impl BrowserState {
         let state = Self {
             hwnd: None,
             sidebar_controller: None,
+            ai_sidebar_controller: None,
+            ai_sidebar_open: false,
             content_controllers: HashMap::new(),
             tabs: vec![initial_tab.clone()],
             active_tab_id: initial_tab.id,
@@ -203,13 +207,30 @@ impl BrowserState {
         let width = rect.right - rect.left;
         let height = rect.bottom - rect.top;
         
+        // Calculate content width (shrink if AI sidebar is open)
+        let ai_sidebar_width = if self.ai_sidebar_open { 320 } else { 0 };
+        let content_right = width - ai_sidebar_width;
+        
         let visible_rect = winapi::shared::windef::RECT {
             left: 0, top: TOPBAR_HEIGHT,
-            right: width, bottom: height
+            right: content_right, bottom: height
         };
         
+        // Position AI sidebar on the right
+        if let Some(ai_ctrl) = &self.ai_sidebar_controller {
+            if self.ai_sidebar_open {
+                let ai_rect = winapi::shared::windef::RECT {
+                    left: content_right, top: TOPBAR_HEIGHT,
+                    right: width, bottom: height
+                };
+                let _ = ai_ctrl.put_bounds(ai_rect);
+                let _ = ai_ctrl.put_is_visible(true);
+            } else {
+                let _ = ai_ctrl.put_is_visible(false);
+            }
+        }
+        
         // Hide others (move offscreen/zero size)
-        // Note: For true performance we might want to suspend them, but resizing is safer for now
         let _hidden_rect = winapi::shared::windef::RECT { left: 0, top: 0, right: 0, bottom: 0 };
 
         for (id, ctrl) in &self.content_controllers {
@@ -217,7 +238,7 @@ impl BrowserState {
                 let _ = ctrl.put_bounds(visible_rect);
                 let _ = ctrl.put_is_visible(true);
             } else {
-                let _ = ctrl.put_bounds(visible_rect); // Keep bounds but hide
+                let _ = ctrl.put_bounds(visible_rect);
                 let _ = ctrl.put_is_visible(false);
             }
         }
@@ -378,40 +399,25 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                             }
                         },
                         "toggle-ai" => {
-                            // Show Marceline AI panel - inject into active tab
-                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
-                            STATE.with(|s| {
-                                if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
-                                    if let Ok(wv) = ctrl.get_webview() {
-                                        let ai_panel_js = r#"
-                                            (function() {
-                                                if (document.getElementById('marceline-panel')) {
-                                                    document.getElementById('marceline-panel').remove();
-                                                    return;
-                                                }
-                                                const panel = document.createElement('div');
-                                                panel.id = 'marceline-panel';
-                                                panel.innerHTML = `
-                                                    <div style="position:fixed;top:20px;right:20px;width:320px;background:#111113;border:1px solid #252529;border-radius:12px;padding:16px;font-family:Inter,system-ui,sans-serif;color:#e4e4e7;z-index:999999;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
-                                                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                                            <span style="font-weight:600;color:#a855f7;">✦ Marceline</span>
-                                                            <button onclick="this.closest('#marceline-panel').remove()" style="background:none;border:none;color:#71717a;cursor:pointer;font-size:16px;">×</button>
-                                                        </div>
-                                                        <div style="font-size:13px;color:#a1a1aa;margin-bottom:12px;">What would you like me to do?</div>
-                                                        <div style="display:flex;flex-direction:column;gap:8px;">
-                                                            <button onclick="window.chrome?.webview?.postMessage({command:'ai-action',data:'summarize'})" style="padding:10px;background:#1a1a1e;border:1px solid #252529;border-radius:8px;color:#e4e4e7;cursor:pointer;text-align:left;">📝 Summarize this page</button>
-                                                            <button onclick="window.chrome?.webview?.postMessage({command:'ai-action',data:'explain'})" style="padding:10px;background:#1a1a1e;border:1px solid #252529;border-radius:8px;color:#e4e4e7;cursor:pointer;text-align:left;">💡 Explain like I'm 12</button>
-                                                            <button onclick="window.chrome?.webview?.postMessage({command:'ai-action',data:'privacy'})" style="padding:10px;background:#1a1a1e;border:1px solid #252529;border-radius:8px;color:#e4e4e7;cursor:pointer;text-align:left;">🔒 Analyze privacy risks</button>
-                                                        </div>
-                                                    </div>
-                                                `;
-                                                document.body.appendChild(panel);
-                                            })();
-                                        "#;
-                                        let _ = wv.execute_script(ai_panel_js, |_| Ok(()));
-                                    }
-                                }
-                            });
+                            // Toggle Marceline AI sidebar
+                            let hwnd_opt = STATE.with(|s| s.borrow().hwnd);
+                            let has_ai_sidebar = STATE.with(|s| s.borrow().ai_sidebar_controller.is_some());
+                            
+                            if has_ai_sidebar {
+                                // Just toggle visibility
+                                STATE.with(|s| {
+                                    let mut state = s.borrow_mut();
+                                    state.ai_sidebar_open = !state.ai_sidebar_open;
+                                    state.layout_content();
+                                });
+                            } else if let Some(hwnd) = hwnd_opt {
+                                // Create AI sidebar WebView
+                                let _ = create_ai_sidebar(hwnd);
+                                STATE.with(|s| {
+                                    let mut state = s.borrow_mut();
+                                    state.ai_sidebar_open = true;
+                                });
+                            }
                         },
                         "ai-scan" => {
                             // Trigger analysis on active tab
@@ -596,6 +602,141 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
+    webview2::Environment::builder().build(move |env| {
+        let env = env.map_err(|e| { error!("AI Env error: {:?}", e); e })?;
+        let winapi_hwnd = hwnd.0 as *mut winapi::shared::windef::HWND__;
+        
+        env.create_controller(winapi_hwnd, move |ctrl| {
+            let ctrl = ctrl.map_err(|e| { error!("AI ctrl error: {:?}", e); e })?;
+            let webview = ctrl.get_webview()?;
+            
+            // Initial layout (will be properly set by layout_content)
+            let mut rect = RECT::default();
+            unsafe { GetClientRect(hwnd, &mut rect); }
+            let width = rect.right - rect.left;
+            let height = rect.bottom - rect.top;
+            let ai_rect = winapi::shared::windef::RECT {
+                left: width - 320, top: TOPBAR_HEIGHT,
+                right: width, bottom: height
+            };
+            ctrl.put_bounds(ai_rect)?;
+            
+            // Load AI Panel
+            let ai_path = std::env::current_dir().unwrap_or_default().join("flxtra_browser/src/ai_panel.html");
+            let ai_url = format!("file:///{}", ai_path.to_str().unwrap().replace("\\", "/"));
+            webview.navigate(&ai_url)?;
+            
+            // Handle messages from AI panel
+            webview.add_web_message_received(move |_, args| {
+                let msg = args.get_web_message_as_json()?;
+                let val: serde_json::Value = serde_json::from_str(&msg).unwrap_or_default();
+                
+                if let Some(cmd) = val["command"].as_str() {
+                    match cmd {
+                        "toggle-ai" => {
+                            // Close sidebar
+                            STATE.with(|s| {
+                                let mut state = s.borrow_mut();
+                                state.ai_sidebar_open = false;
+                                state.layout_content();
+                            });
+                        },
+                        "ai-action" | "ai-question" => {
+                            // Forward to main handler
+                            let action = val["data"].as_str().unwrap_or("").to_string();
+                            let is_question = cmd == "ai-question";
+                            
+                            // Get active tab content
+                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
+                            let ai_sidebar_ctrl = STATE.with(|s| s.borrow().ai_sidebar_controller.clone());
+                            
+                            STATE.with(|s| {
+                                if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
+                                    if let Ok(wv) = ctrl.get_webview() {
+                                        // Capture context for closure
+                                        let ai_ctrl_clone = ai_sidebar_ctrl.clone();
+                                        let action_clone = action.clone();
+                                        
+                                        // Execute script to get text and URL
+                                        let _ = wv.execute_script("JSON.stringify({text: document.body.innerText, url: window.location.href})", move |json_str| {
+                                            let data: serde_json::Value = serde_json::from_str(&json_str).unwrap_or_default();
+                                            let text = data["text"].as_str().unwrap_or("").to_string();
+                                            let _url = data["url"].as_str().unwrap_or("").to_string(); // Could use for context
+                                            
+                                            // Spawn thread to avoid blocking UI
+                                            let hwnd_raw = STATE.with(|s| s.borrow().hwnd).map(|h| h.0 as usize).unwrap_or(0);
+                                            if hwnd_raw != 0 {
+                                                std::thread::spawn(move || {
+                                                    let hwnd = HWND(hwnd_raw as *mut std::ffi::c_void);
+                                                    let response_text = if is_question {
+                                                        call_ai(&action_clone, "ask", &text.chars().take(8000).collect::<String>())
+                                                    } else {
+                                                        match action_clone.as_str() {
+                                                            "summarize" => call_ai(&text.chars().take(8000).collect::<String>(), "summarize", ""),
+                                                            "explain" => call_ai(&text.chars().take(8000).collect::<String>(), "explain", ""),
+                                                            "keypoints" => call_ai(&text.chars().take(8000).collect::<String>(), "keypoints", ""),
+                                                            "privacy" => {
+                                                                // Heuristic Privacy Check
+                                                                let trackers = vec![
+                                                                    ("google-analytics.com", "Google Analytics"),
+                                                                    ("googletagmanager.com", "Google Tag Manager"),
+                                                                    ("facebook.net", "Meta Pixel"),
+                                                                    ("doubleclick.net", "Google Ads"),
+                                                                    ("adservice.google.com", "Google AdServices"),
+                                                                    ("clarity.ms", "Microsoft Clarity"),
+                                                                    ("hotjar.com", "Hotjar"),
+                                                                    ("criteo.com", "Criteo"),
+                                                                    ("amazon-adsystem.com", "Amazon Ads"),
+                                                                    ("bing.com/bat.js", "Bing Ads")
+                                                                ];
+                                                                
+                                                                let found_trackers: Vec<&str> = trackers.iter()
+                                                                    .filter(|(domain, _)| text.contains(domain) || text.contains(&domain.replace(".", "\\.")))
+                                                                    .map(|(_, name)| *name)
+                                                                    .collect();
+                                                                    
+                                                                if found_trackers.is_empty() {
+                                                                     format!("🔒 **Privacy Analysis**\n\nI scanned this page and found **0 known trackers** in the main content.\n\n✅ This page appears relatively clean.")
+                                                                } else {
+                                                                     format!("🔒 **Privacy Analysis**\n\n⚠️ I detected **{} potential trackers**:\n\n- {}\n\nThese scripts may be monitoring your behavior.", found_trackers.len(), found_trackers.join("\n- "))
+                                                                }
+                                                            },
+                                                            _ => "I'm not sure how to help with that yet.".to_string()
+                                                        }
+                                                    };
+                                                    
+                                                    // Send result back to UI thread
+                                                    let boxed = Box::new(response_text);
+                                                    let ptr = Box::into_raw(boxed);
+                                                    unsafe { PostMessageW(hwnd, WM_APP + 1, WPARAM(ptr as usize), LPARAM(0)); }
+                                                });
+                                            }
+                                            Ok(())
+                                        });
+                                    }
+                                }
+                            });
+                        },
+                        _ => {}
+                    }
+                }
+                Ok(())
+            })?;
+            
+            STATE.with(|s| {
+                let mut state = s.borrow_mut();
+                state.ai_sidebar_controller = Some(Rc::new(ctrl));
+                state.layout_content();
+            });
+            Ok(())
+        })?;
+        Ok(())
+    })
+    .map_err(|e| anyhow::anyhow!("AI Sidebar Init Error: {:?}", e))?;
+    Ok(())
+}
+
 fn create_isolated_tab(hwnd: HWND, tab_id: Uuid) -> anyhow::Result<()> {
     // Unique Profile Path per Tab
     let mut profile_path = std::env::current_dir()?;
@@ -686,6 +827,24 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
         }
         WM_DESTROY => {
             PostQuitMessage(0);
+            LRESULT(0)
+        }
+        msg if msg == WM_APP + 1 => {
+            // AI Response Received
+            let ptr = wparam.0 as *mut String;
+            let text = unsafe { Box::from_raw(ptr) };
+            
+            STATE.with(|s| {
+                if let Some(ctrl) = &s.borrow().ai_sidebar_controller {
+                    if let Ok(wv) = ctrl.get_webview() {
+                        let msg = serde_json::json!({
+                            "type": "ai-response",
+                            "content": *text
+                        });
+                        let _ = wv.post_web_message_as_json(&msg.to_string());
+                    }
+                }
+            });
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wparam, lparam),
