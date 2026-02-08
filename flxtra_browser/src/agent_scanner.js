@@ -44,6 +44,7 @@
             id: agentId,
             tag: el.tagName.toLowerCase(),
             type: el.type || '',
+            value: el.value || '',
             label: label
         });
     });

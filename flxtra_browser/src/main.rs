@@ -4,9 +4,6 @@
 //! 1. Sidebar (UI) - Shared Environment
 //! 2. Content Tabs - ISOLATED Environments (Unique UserDataFolder per tab)
 
-use flxtra_filter::FilterEngine;
-use once_cell::sync::Lazy;
-use std::sync::Arc;
 use tracing::{info, error, debug};
 use tracing_subscriber::{fmt, EnvFilter};
 use webview2::Controller;
@@ -72,7 +69,9 @@ struct BrowserState {
 impl BrowserState {
     fn new() -> Self {
         let initial_tab = TabInfo::new();
-        let state = Self {
+        
+        // state.load_session(); // Disabled temporarily while refactoring structure
+        Self {
             hwnd: None,
             sidebar_controller: None,
             ai_sidebar_controller: None,
@@ -81,9 +80,7 @@ impl BrowserState {
             tabs: vec![initial_tab.clone()],
             active_tab_id: initial_tab.id,
             pending_plan: None,
-        };
-        // state.load_session(); // Disabled temporarily while refactoring structure
-        state
+        }
     }
 
     fn sync_sidebar(&self) {
@@ -588,7 +585,7 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                 if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
                                     if let Ok(wv) = ctrl.get_webview() {
                                         // Capture context for closure
-                                        let ai_ctrl_clone = ai_sidebar_ctrl.clone();
+                                        let _ai_ctrl_clone = ai_sidebar_ctrl.clone();
                                         let action_clone = action.clone();
                                         
                                         // Execute script to get text and URL
@@ -629,11 +626,16 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                                     .map(|(_, name)| *name)
                                                                     .collect();
                                                                     
-                                                                if found_trackers.is_empty() {
-                                                                     format!("🔒 **Privacy Analysis**\n\nI scanned this page and found **0 known trackers** in the main content.\n\n✅ This page appears relatively clean.")
+                                                                let tracker_msg = if found_trackers.is_empty() {
+                                                                     "✅ **No obvious trackers found.**".to_string()
                                                                 } else {
-                                                                     format!("🔒 **Privacy Analysis**\n\n⚠️ I detected **{} potential trackers**:\n\n- {}\n\nThese scripts may be monitoring your behavior.", found_trackers.len(), found_trackers.join("\n- "))
-                                                                }
+                                                                     format!("⚠️ **{} Potential Trackers Detected:**\n- {}", found_trackers.len(), found_trackers.join("\n- "))
+                                                                };
+
+                                                                // Call Ollama for Deep Analysis
+                                                                let analysis = call_ai(&text.chars().take(6000).collect::<String>(), "analyze", "");
+                                                                
+                                                                format!("🔒 **Privacy Report**\n\n{}\n\n---\n\n**AI Analysis:**\n{}", tracker_msg, analysis)
                                                             },
                                                             _ => "I'm not sure how to help with that yet.".to_string()
                                                         }
@@ -713,9 +715,9 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
 }
 
 fn create_isolated_tab(hwnd: HWND, tab_id: Uuid) -> anyhow::Result<()> {
-    // Unique Profile Path per Tab
-    let mut profile_path = std::env::current_dir()?;
-    profile_path.push("user_data");
+    // Ephemeral Profile Path in TEMP (auto-cleaned by OS on reboot)
+    let mut profile_path = std::env::temp_dir();
+    profile_path.push("flextra_sessions");
     profile_path.push(format!("tab_{}", tab_id));
 
     webview2::Environment::builder()
@@ -863,22 +865,22 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
 
 /// Delete all ephemeral tab profiles to ensure privacy
 fn cleanup_session_data() {
-    if let Ok(cwd) = std::env::current_dir() {
-        let user_data_dir = cwd.join("user_data");
-        if user_data_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&user_data_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                            if name.starts_with("tab_") {
-                                let _ = std::fs::remove_dir_all(&path);
-                                info!("Cleaned up session: {}", name);
-                            }
+    let session_dir = std::env::temp_dir().join("flextra_sessions");
+    if session_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&session_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with("tab_") {
+                            let _ = std::fs::remove_dir_all(&path);
+                            info!("Cleaned up session: {}", name);
                         }
                     }
                 }
             }
         }
+        // Also try to remove the parent directory if empty
+        let _ = std::fs::remove_dir(&session_dir);
     }
 }

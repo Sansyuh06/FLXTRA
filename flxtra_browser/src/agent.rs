@@ -8,6 +8,8 @@ pub struct DOMItem {
     pub label: String,
     #[serde(default)]
     pub value: String,
+    #[serde(default)]
+    pub r#type: String, // "text", "submit", etc.
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -70,7 +72,7 @@ pub fn call_ai(prompt: &str, action: &str, context: &str) -> String {
 pub fn call_agent_planner(goal: &str, dom: &[DOMItem]) -> Option<AgentPlan> {
     let dom_desc = dom.iter()
         .take(50) // Limit context
-        .map(|d| format!("[{}] {} '{}'", d.id, d.tag, d.label))
+        .map(|d| format!("[{}] {} ({}) '{}'", d.id, d.tag, d.r#type, d.label))
         .collect::<Vec<_>>()
         .join("\n");
 
