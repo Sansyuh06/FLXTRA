@@ -38,8 +38,8 @@ export default function BrowserFrame({ url }: BrowserFrameProps) {
                             <div className="text-6xl mb-4">🚧</div>
                             <h2 className="text-xl font-semibold mb-2">Cannot Preview This Site</h2>
                             <p className="text-gray-400 text-sm max-w-md mb-4">
-                                This website blocks embedding. In the full version of Comet Web,
-                                we use Remote Browser Isolation (RBI) to stream any website securely.
+                                This website blocks embedding. In the full Flextra browser,
+                                we use Remote Browser Isolation (RBI) to securely stream any website.
                             </p>
                             <a
                                 href={url}
@@ -53,9 +53,9 @@ export default function BrowserFrame({ url }: BrowserFrameProps) {
                     )
                 ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <div className="text-8xl mb-6 opacity-20">☄️</div>
-                        <h1 className="text-2xl font-bold mb-2">Welcome to Comet</h1>
-                        <p className="text-gray-500 text-sm">Enter a URL in the sidebar to get started</p>
+                        <div className="text-8xl mb-6 opacity-20">✦</div>
+                        <h1 className="text-2xl font-bold mb-2 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Welcome to Flextra</h1>
+                        <p className="text-gray-500 text-sm">Enter a URL in the sidebar to start exploring</p>
                     </div>
                 )}
             </div>

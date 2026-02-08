@@ -60,7 +60,7 @@ impl HttpClient {
             .timeout(Duration::from_secs(timeout_secs))
             .https_only(!allow_http)
             .use_rustls_tls()
-            .min_tls_version(reqwest::tls::Version::TLS_1_2)
+            .min_tls_version(reqwest::tls::Version::TLS_1_3)
             .default_headers(headers)
             .gzip(true)
             .brotli(true)
