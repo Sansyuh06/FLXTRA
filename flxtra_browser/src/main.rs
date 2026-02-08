@@ -28,91 +28,10 @@ fn to_wstring(s: &str) -> Vec<u16> {
     OsStr::new(s).encode_wide().chain(std::iter::once(0)).collect()
 }
 
-// Global filter engine
-static FILTER_ENGINE: Lazy<Arc<FilterEngine>> = Lazy::new(|| Arc::new(FilterEngine::new()));
 
-// AI Service - Ollama Integration
-fn call_ai(prompt: &str, action: &str, context: &str) -> String {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(45))
-        .build()
-        .ok();
-    
-    let full_prompt = match action {
-        "summarize" => format!("Summarize this webpage content in 3 concise bullet points:\n\n{}", prompt),
-        "explain" => format!("Explain this webpage content in simple terms that a 12-year-old could understand:\n\n{}", prompt),
-        "keypoints" => format!("Extract the 5 most important facts from this content as a numbered list:\n\n{}", prompt),
-        "ask" => format!("Context from webpage:\n{}\n\nQuestion: {}\n\nAnswer the question based on the context above:", context, prompt),
-        _ => format!("Analyze this content:\n\n{}", prompt),
-    };
-    
-    // Try Ollama first (local)
-    if let Some(ref c) = client {
-        if let Ok(res) = c.post("http://localhost:11434/api/generate")
-            .json(&serde_json::json!({
-                "model": "mistral",
-                "prompt": full_prompt,
-                "stream": false
-            }))
-            .send() 
-        {
-            if let Ok(body) = res.json::<serde_json::Value>() {
-                if let Some(response) = body["response"].as_str() {
-                    return response.to_string();
-                }
-            }
-        }
-    }
-    
-    if action == "ask" {
-        return "Unable to answer. Please ensure Ollama is running locally.".to_string();
-    }
-    
-    // Fallback: Inform user about Ollama requirement
-    let action_label = match action {
-        "summarize" => "summarize",
-        "explain" => "explain",
-        "keypoints" => "extract key points from",
-        _ => "analyze"
-    };
-    
-    format!("⚠️ **AI Offline**\n\nI couldn't {} this page because Ollama isn't running.\n\n**To enable AI:**\n1. Install Ollama: https://ollama.ai\n2. Run: `ollama serve`\n3. Download a model: `ollama pull mistral`\n\nThen try again!", action_label)
-}
 
-// Agent Planner - Ollama ReAct
-fn call_agent_planner(goal: &str, dom: &[DOMItem]) -> Option<AgentPlan> {
-    let dom_desc = dom.iter()
-        .take(50) // Limit context
-        .map(|d| format!("[{}] {} '{}'", d.id, d.tag, d.label))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let prompt = format!(
-        "Goal: \"{}\"\n\nVisible Interactive Elements:\n{}\n\nReturn the NEXT step as a JSON object with fields: action (click/type), target (id), value (optional), description (short reason). JSON ONLY.",
-        goal, dom_desc
-    );
-
-    let client = reqwest::blocking::Client::new();
-    if let Ok(res) = client.post("http://localhost:11434/api/generate")
-        .json(&serde_json::json!({
-            "model": "mistral",
-            "prompt": prompt,
-            "stream": false,
-            "format": "json"
-        }))
-        .send() 
-    {
-        if let Ok(body) = res.json::<serde_json::Value>() {
-            if let Some(resp_str) = body["response"].as_str() {
-                // Try parsing JSON
-                if let Ok(plan) = serde_json::from_str::<AgentPlan>(resp_str) {
-                    return Some(plan);
-                }
-            }
-        }
-    }
-    None
-}
+mod agent;
+use agent::{AgentPlan, DOMItem, call_ai, call_agent_planner};
 
 // Topbar height (horizontal layout)
 const TOPBAR_HEIGHT: i32 = 90;
@@ -124,23 +43,6 @@ struct TabInfo {
     url: String,
     favicon: Option<String>,
     active: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct DOMItem {
-    id: u32,
-    tag: String,
-    label: String,
-    #[serde(default)]
-    value: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct AgentPlan {
-    action: String, // click, type, scroll
-    target: u32,
-    value: Option<String>,
-    description: String,
 }
 
 impl TabInfo {
@@ -324,7 +226,8 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             
             // Load Sidebar
             let sidebar_path = std::env::current_dir().unwrap_or_default().join("flxtra_browser/src/sidebar.html");
-            let sidebar_url = format!("file:///{}", sidebar_path.to_str().unwrap().replace("\\", "/"));
+            let sidebar_str = sidebar_path.to_str().unwrap_or("");
+            let sidebar_url = format!("file:///{}", sidebar_str.replace("\\", "/"));
             webview.navigate(&sidebar_url)?;
             
             // Message Handler
@@ -343,7 +246,9 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                 let mut state = s.borrow_mut();
                                 state.tabs.push(new_tab);
                                 for t in &mut state.tabs { t.active = false; }
-                                state.tabs.last_mut().unwrap().active = true;
+                                if let Some(last) = state.tabs.last_mut() {
+                                    last.active = true;
+                                }
                                 state.active_tab_id = new_id;
                                 state.sync_sidebar();
                             });
@@ -455,7 +360,7 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                  }
                                              
                                              Ok(())
-                                         }).unwrap();
+                                         }).unwrap_or_else(|e| error!("Scan error: {:?}", e));
                                      }
                                  }
                              });
@@ -496,7 +401,7 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                 }
                                             }
                                             Ok(())
-                                        }).unwrap();
+                                        }).unwrap_or_else(|e| error!("Script exec error: {:?}", e));
                                     }
                                 }
                             });
@@ -530,14 +435,40 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                             "plan": plan
                                                         });
                                                         let _ = sb_wv.post_web_message_as_json(&response.to_string());
-                                                    }
-                                                }
-                                            }
-                                            Ok(())
-                                        }).unwrap();
-                                    }
-                                }
-                            });
+                                                     }
+                                                 }
+                                             }
+                                             Ok(())
+                                         }).unwrap_or_else(|e| error!("Agent start error: {:?}", e));
+                                     }
+                                 }
+                             });
+                        },
+                        "privacy-stats" => {
+                             // Open Privacy Dashboard
+                             let new_tab = TabInfo {
+                                 id: Uuid::new_v4(),
+                                 title: "Privacy Dashboard".to_string(),
+                                 url: "flxtra://privacy".to_string(),
+                                 favicon: Some("🛡️".to_string()),
+                                 active: true,
+                             };
+                             let new_id = new_tab.id;
+                             
+                             STATE.with(|s| {
+                                 let mut state = s.borrow_mut();
+                                 state.tabs.push(new_tab);
+                                 for t in &mut state.tabs { t.active = false; }
+                                 if let Some(last) = state.tabs.last_mut() {
+                                     last.active = true;
+                                 }
+                                 state.active_tab_id = new_id;
+                                 state.sync_sidebar();
+                             });
+                             
+                             if let Some(h) = STATE.with(|s| s.borrow().hwnd) {
+                                 let _ = create_isolated_tab(h, new_id);
+                             }
                         },
                         "agent-confirm" => {
                             let active_id = STATE.with(|s| s.borrow().active_tab_id);
@@ -549,13 +480,16 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                         if let Ok(wv) = ctrl.get_webview() {
                                             let script = match p.action.as_str() {
                                                 "click" => format!(
-                                                    "document.querySelector('[data-agent-id=\"{}\"]').click();", 
+                                                    "document.querySelector('[data-flxtra-id=\"{}\"]').click();", 
                                                     p.target
                                                 ),
-                                                "type" => format!(
-                                                    "let el = document.querySelector('[data-agent-id=\"{}\"]'); if(el) {{ el.value = '{}'; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}", 
-                                                    p.target, p.value.unwrap_or_default()
-                                                ),
+                                                "type" => {
+                                                    let safe_value = serde_json::to_string(&p.value.unwrap_or_default()).unwrap_or_else(|_| "\"\"".to_string());
+                                                    format!(
+                                                        "let el = document.querySelector('[data-flxtra-id=\"{}\"]'); if(el) {{ el.value = {}; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}", 
+                                                        p.target, safe_value
+                                                    )
+                                                },
                                                 "scroll" => "window.scrollBy(0, 500);".to_string(),
                                                 _ => "".to_string()
                                             };
@@ -622,7 +556,8 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             
             // Load AI Panel
             let ai_path = std::env::current_dir().unwrap_or_default().join("flxtra_browser/src/ai_panel.html");
-            let ai_url = format!("file:///{}", ai_path.to_str().unwrap().replace("\\", "/"));
+            let ai_str = ai_path.to_str().unwrap_or("");
+            let ai_url = format!("file:///{}", ai_str.replace("\\", "/"));
             webview.navigate(&ai_url)?;
             
             // Handle messages from AI panel
@@ -802,14 +737,35 @@ fn create_isolated_tab(hwnd: HWND, tab_id: Uuid) -> anyhow::Result<()> {
                     
                     // Initial Nav
                     if let Some(tab) = state.tabs.iter().find(|t| t.id == tab_id) {
-                         if !tab.url.is_empty() {
+                         if tab.url == "flxtra://privacy" {
+                             if let Ok(exe_path) = std::env::current_exe() {
+                                 if let Some(exe_dir) = exe_path.parent() {
+                                     let path = exe_dir.join("privacy_dashboard.html");
+                                     let url = format!("file:///{}", path.to_str().unwrap_or("").replace("\\", "/"));
+                                     let _ = webview.navigate(&url);
+                                 }
+                             }
+                             
+                             // Attach Nuke Handler
+                             webview.add_web_message_received(move |_, args| {
+                                 if let Ok(msg) = args.try_get_web_message_as_string() {
+                                     if msg == "nuke-session" {
+                                         // Clean up and Close
+                                         info!("NUKING SESSION DATA...");
+                                         cleanup_session_data();
+                                         std::process::exit(0);
+                                     }
+                                 }
+                                 Ok(())
+                             }).ok(); // Ignore error if fails
+                         } else if !tab.url.is_empty() {
                              let _ = webview.navigate(&tab.url);
                          } else {
-                             // Load landing page for new tabs (from exe directory)
+                             // Load landing page
                              if let Ok(exe_path) = std::env::current_exe() {
                                  if let Some(exe_dir) = exe_path.parent() {
                                      let landing_path = exe_dir.join("landing.html");
-                                     let landing_url = format!("file:///{}", landing_path.to_str().unwrap().replace("\\", "/"));
+                                     let landing_url = format!("file:///{}", landing_path.to_str().unwrap_or("").replace("\\", "/"));
                                      let _ = webview.navigate(&landing_url);
                                  }
                              }

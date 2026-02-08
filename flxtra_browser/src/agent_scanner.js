@@ -1,4 +1,4 @@
-(function() {
+(function () {
     let items = [];
     let idCounter = 1;
 
@@ -27,10 +27,10 @@
 
     document.querySelectorAll(selectors.join(',')).forEach(el => {
         if (!isVisible(el)) return;
-        
+
         // Assign a temporary visual ID for the user to see (debugging/visual grounding)
         // In a real agent, we might overlay this. For now, we just track it internally.
-        
+
         let label = getLabel(el).trim().slice(0, 50); // Truncate
         if (!label && el.tagName === 'INPUT') label = 'Input';
         if (!label) return;
@@ -38,8 +38,8 @@
         // Generate a unique selector or use an internal map key
         // For MVP, we'll attach a data attribute to find it later easily
         const agentId = idCounter++;
-        el.setAttribute('data-agent-id', agentId);
-        
+        el.setAttribute('data-flxtra-id', agentId);
+
         items.push({
             id: agentId,
             tag: el.tagName.toLowerCase(),
