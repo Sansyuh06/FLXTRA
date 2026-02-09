@@ -221,10 +221,16 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             };
             ctrl.put_bounds(side_rect)?;
             
-            // Load Sidebar
-            let sidebar_path = std::env::current_dir().unwrap_or_default().join("flxtra_browser/src/sidebar.html");
-            let sidebar_str = sidebar_path.to_str().unwrap_or("");
-            let sidebar_url = format!("file:///{}", sidebar_str.replace("\\", "/"));
+            // Load Sidebar (check multiple paths for dev/release compatibility)
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let sidebar_path = if cwd.join("src/sidebar.html").exists() {
+                cwd.join("src/sidebar.html")
+            } else if cwd.join("flxtra_browser/src/sidebar.html").exists() {
+                cwd.join("flxtra_browser/src/sidebar.html")
+            } else {
+                cwd.join("sidebar.html")
+            };
+            let sidebar_url = format!("file:///{}", sidebar_path.to_str().unwrap_or("").replace("\\", "/"));
             webview.navigate(&sidebar_url)?;
             
             // Message Handler
@@ -551,10 +557,16 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             };
             ctrl.put_bounds(ai_rect)?;
             
-            // Load AI Panel
-            let ai_path = std::env::current_dir().unwrap_or_default().join("flxtra_browser/src/ai_panel.html");
-            let ai_str = ai_path.to_str().unwrap_or("");
-            let ai_url = format!("file:///{}", ai_str.replace("\\", "/"));
+            // Load AI Panel (check multiple paths)
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let ai_path = if cwd.join("src/ai_panel.html").exists() {
+                cwd.join("src/ai_panel.html")
+            } else if cwd.join("flxtra_browser/src/ai_panel.html").exists() {
+                cwd.join("flxtra_browser/src/ai_panel.html")
+            } else {
+                cwd.join("ai_panel.html")
+            };
+            let ai_url = format!("file:///{}", ai_path.to_str().unwrap_or("").replace("\\", "/"));
             webview.navigate(&ai_url)?;
             
             // Handle messages from AI panel
@@ -588,18 +600,33 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                         let _ai_ctrl_clone = ai_sidebar_ctrl.clone();
                                         let action_clone = action.clone();
                                         
-                                        // Execute script to get text and URL
-                                        let _ = wv.execute_script("JSON.stringify({text: document.body.innerText, url: window.location.href})", move |json_str| {
-                                            let data: serde_json::Value = serde_json::from_str(&json_str).unwrap_or_default();
+                                        // Execute script to get text and URL - try multiple methods
+                                        let _ = wv.execute_script("(function(){var t=document.body.innerText||document.body.textContent||'';return JSON.stringify({text:t.slice(0,15000),url:location.href});})()", move |json_str| {
+                                            info!("Raw script result length: {}", json_str.len());
+                                            
+                                            // WebView2 returns the result as a JSON-encoded string
+                                            // So we need to first deserialize the outer string, then parse the inner JSON
+                                            let inner_json: String = serde_json::from_str(&json_str).unwrap_or_else(|_| json_str.clone());
+                                            
+                                            let data: serde_json::Value = serde_json::from_str(&inner_json).unwrap_or_default();
                                             let text = data["text"].as_str().unwrap_or("").to_string();
-                                            let _url = data["url"].as_str().unwrap_or("").to_string(); // Could use for context
+                                            let url = data["url"].as_str().unwrap_or("").to_string();
+                                            
+                                            info!("Extracted {} chars from {}", text.len(), url);
+                                            if text.len() > 0 {
+                                                info!("Content preview: {}", text.chars().take(200).collect::<String>());
+                                            }
                                             
                                             // Spawn thread to avoid blocking UI
                                             let hwnd_raw = STATE.with(|s| s.borrow().hwnd).map(|h| h.0 as usize).unwrap_or(0);
                                             if hwnd_raw != 0 {
                                                 std::thread::spawn(move || {
                                                     let hwnd = HWND(hwnd_raw as *mut std::ffi::c_void);
-                                                    let response_text = if is_question {
+                                                    
+                                                    // Check if we actually got content
+                                                    let response_text = if text.trim().len() < 50 {
+                                                        "❌ **Could not extract page content.**\n\nThis might happen if:\n- The page is still loading\n- The page uses heavy JavaScript\n- The content is in an iframe\n\nTry refreshing the page and clicking again.".to_string()
+                                                    } else if is_question {
                                                         call_ai(&action_clone, "ask", &text.chars().take(8000).collect::<String>())
                                                     } else {
                                                         match action_clone.as_str() {
@@ -740,13 +767,17 @@ fn create_isolated_tab(hwnd: HWND, tab_id: Uuid) -> anyhow::Result<()> {
                     // Initial Nav
                     if let Some(tab) = state.tabs.iter().find(|t| t.id == tab_id) {
                          if tab.url == "flxtra://privacy" {
-                             if let Ok(exe_path) = std::env::current_exe() {
-                                 if let Some(exe_dir) = exe_path.parent() {
-                                     let path = exe_dir.join("privacy_dashboard.html");
-                                     let url = format!("file:///{}", path.to_str().unwrap_or("").replace("\\", "/"));
-                                     let _ = webview.navigate(&url);
-                                 }
-                             }
+                             // Find privacy dashboard (check multiple paths)
+                             let cwd = std::env::current_dir().unwrap_or_default();
+                             let path = if cwd.join("src/privacy_dashboard.html").exists() {
+                                 cwd.join("src/privacy_dashboard.html")
+                             } else if cwd.join("flxtra_browser/src/privacy_dashboard.html").exists() {
+                                 cwd.join("flxtra_browser/src/privacy_dashboard.html")
+                             } else {
+                                 cwd.join("privacy_dashboard.html")
+                             };
+                             let url = format!("file:///{}", path.to_str().unwrap_or("").replace("\\", "/"));
+                             let _ = webview.navigate(&url);
                              
                              // Attach Nuke Handler
                              webview.add_web_message_received(move |_, args| {
@@ -763,13 +794,19 @@ fn create_isolated_tab(hwnd: HWND, tab_id: Uuid) -> anyhow::Result<()> {
                          } else if !tab.url.is_empty() {
                              let _ = webview.navigate(&tab.url);
                          } else {
-                             // Load landing page
-                             if let Ok(exe_path) = std::env::current_exe() {
-                                 if let Some(exe_dir) = exe_path.parent() {
-                                     let landing_path = exe_dir.join("landing.html");
-                                     let landing_url = format!("file:///{}", landing_path.to_str().unwrap_or("").replace("\\", "/"));
-                                     let _ = webview.navigate(&landing_url);
-                                 }
+                             // Load landing page (check multiple paths)
+                             let cwd = std::env::current_dir().unwrap_or_default();
+                             let landing_path = if cwd.join("src/landing.html").exists() {
+                                 cwd.join("src/landing.html")
+                             } else if cwd.join("flxtra_browser/src/landing.html").exists() {
+                                 cwd.join("flxtra_browser/src/landing.html")
+                             } else {
+                                 cwd.join("landing.html")
+                             };
+                             
+                             if landing_path.exists() {
+                                 let landing_url = format!("file:///{}", landing_path.to_str().unwrap_or("").replace("\\", "/"));
+                                 let _ = webview.navigate(&landing_url);
                              }
                          }
                     }
