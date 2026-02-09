@@ -681,21 +681,34 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                             });
                         },
                         "agent-goal" => {
-                            // Agent Mode: Scan DOM, call planner, return plan
+                            // Agent Mode: Scan DOM, call planner, execute automatically
                             let goal = val["data"].as_str().unwrap_or("").to_string();
                             let active_id = STATE.with(|s| s.borrow().active_tab_id);
                             
                             STATE.with(|s| {
                                 if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
                                     if let Ok(wv) = ctrl.get_webview() {
-                                        // Load scanner script
-                                        let script = std::fs::read_to_string("flxtra_browser/src/agent_scanner.js")
+                                        // Load scanner script (check multiple paths)
+                                        let cwd = std::env::current_dir().unwrap_or_default();
+                                        let scanner_path = if cwd.join("src/agent_scanner.js").exists() {
+                                            cwd.join("src/agent_scanner.js")
+                                        } else if cwd.join("flxtra_browser/src/agent_scanner.js").exists() {
+                                            cwd.join("flxtra_browser/src/agent_scanner.js")
+                                        } else {
+                                            cwd.join("agent_scanner.js")
+                                        };
+                                        
+                                        let script = std::fs::read_to_string(&scanner_path)
                                             .unwrap_or_else(|_| "JSON.stringify([])".to_string());
                                         
                                         let goal_clone = goal.clone();
                                         
                                         let _ = wv.execute_script(&script, move |dom_json| {
-                                            let dom: Vec<DOMItem> = serde_json::from_str(&dom_json).unwrap_or_default();
+                                            // Parse DOM - need to deserialize the WebView2 result first
+                                            let inner: String = serde_json::from_str(&dom_json).unwrap_or(dom_json.clone());
+                                            let dom: Vec<DOMItem> = serde_json::from_str(&inner).unwrap_or_default();
+                                            
+                                            info!("Agent scanned {} interactive elements", dom.len());
                                             
                                             // Call planner in background thread
                                             let hwnd_raw = STATE.with(|s| s.borrow().hwnd).map(|h| h.0 as usize).unwrap_or(0);
@@ -703,13 +716,17 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                 std::thread::spawn(move || {
                                                     let plan = call_agent_planner(&goal_clone, &dom);
                                                     
-                                                    // Store plan for confirmation (on UI thread)
+                                                    // Store plan and send to UI
                                                     let plan_json = serde_json::json!({
                                                         "type": "agent-plan",
                                                         "plan": plan
                                                     }).to_string();
                                                     
-                                                    // Send to UI thread via WM_APP+2
+                                                    // Also store the plan for auto-execution
+                                                    if let Some(ref p) = plan {
+                                                        info!("Agent plan: {:?}", p);
+                                                    }
+                                                    
                                                     let hwnd = HWND(hwnd_raw as *mut std::ffi::c_void);
                                                     let boxed = Box::new(plan_json);
                                                     let ptr = Box::into_raw(boxed);
