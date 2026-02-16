@@ -15,9 +15,134 @@ pub struct DOMItem {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AgentPlan {
     pub action: String, // click, type, scroll
+    #[serde(default)]
     pub target: u32,
+    #[serde(default)]
     pub value: Option<String>,
+    #[serde(default)]
     pub description: String,
+}
+
+/// Fallback heuristic planner for when Ollama fails or isn't available.
+/// Handles navigation, clicking, form filling.
+pub fn heuristic_planner(goal: &str, dom: &[DOMItem]) -> Option<AgentPlan> {
+    let goal_lower = goal.to_lowercase();
+    
+    // ===== NAVIGATION commands: "open youtube", "go to google", etc. =====
+    let nav_keywords = ["open", "go to", "navigate to", "visit", "take me to"];
+    let is_nav = nav_keywords.iter().any(|k| goal_lower.contains(k));
+    
+    if is_nav {
+        // Known site shortcuts
+        let sites: Vec<(&str, &str)> = vec![
+            ("youtube", "https://www.youtube.com"),
+            ("google", "https://www.google.com"),
+            ("github", "https://github.com"),
+            ("twitter", "https://twitter.com"),
+            ("x.com", "https://x.com"),
+            ("reddit", "https://www.reddit.com"),
+            ("facebook", "https://www.facebook.com"),
+            ("instagram", "https://www.instagram.com"),
+            ("linkedin", "https://www.linkedin.com"),
+            ("wikipedia", "https://en.wikipedia.org"),
+            ("amazon", "https://www.amazon.com"),
+            ("netflix", "https://www.netflix.com"),
+            ("twitch", "https://www.twitch.tv"),
+            ("spotify", "https://open.spotify.com"),
+            ("gmail", "https://mail.google.com"),
+            ("chatgpt", "https://chat.openai.com"),
+            ("stackoverflow", "https://stackoverflow.com"),
+        ];
+        
+        for (name, url) in &sites {
+            if goal_lower.contains(name) {
+                return Some(AgentPlan {
+                    action: "navigate".into(),
+                    target: 0,
+                    value: Some(url.to_string()),
+                    description: format!("Open {}", name),
+                });
+            }
+        }
+        
+        // Try to extract a URL from the goal
+        let words: Vec<&str> = goal.split_whitespace().collect();
+        for word in &words {
+            if word.contains('.') && !word.ends_with('.') {
+                let url = if word.starts_with("http") { word.to_string() } else { format!("https://{}", word) };
+                return Some(AgentPlan {
+                    action: "navigate".into(),
+                    target: 0,
+                    value: Some(url),
+                    description: format!("Navigate to {}", word),
+                });
+            }
+        }
+    }
+    
+    // ===== SEARCH commands: "search for cats", "find pizza recipes" =====
+    if goal_lower.starts_with("search") || goal_lower.starts_with("find") || goal_lower.starts_with("look up") {
+        let query = goal_lower
+            .replace("search for", "").replace("search", "")
+            .replace("find", "").replace("look up", "")
+            .trim().to_string();
+        if !query.is_empty() {
+            return Some(AgentPlan {
+                action: "navigate".into(),
+                target: 0,
+                value: Some(format!("https://www.google.com/search?q={}", query.replace(' ', "+"))),
+                description: format!("Search for '{}'", query),
+            });
+        }
+    }
+    
+    // ===== CLICK commands =====
+    if goal_lower.contains("click") || goal_lower.contains("press") || goal_lower.contains("submit") {
+        for item in dom {
+            let label_lower = item.label.to_lowercase();
+            if item.tag == "button" || item.r#type == "submit" {
+                if goal_lower.contains("submit") || label_lower.contains("submit") 
+                    || label_lower.contains("send") || label_lower.contains("next") {
+                    return Some(AgentPlan {
+                        action: "click".into(),
+                        target: item.id,
+                        value: None,
+                        description: format!("Click '{}'", item.label),
+                    });
+                }
+            }
+        }
+        for item in dom {
+            if item.tag == "button" || item.r#type == "submit" || item.tag == "a" {
+                return Some(AgentPlan {
+                    action: "click".into(),
+                    target: item.id,
+                    value: None,
+                    description: format!("Click '{}'", item.label),
+                });
+            }
+        }
+    }
+    
+    // ===== FILL/TYPE commands =====
+    if goal_lower.contains("fill") || goal_lower.contains("type") || goal_lower.contains("enter") {
+        for item in dom {
+            if (item.tag == "input" && (item.r#type == "text" || item.r#type == "email" || item.r#type == ""))
+                || item.tag == "textarea" 
+            {
+                if item.value.is_empty() {
+                    return Some(AgentPlan {
+                        action: "type".into(),
+                        target: item.id,
+                        value: Some("(value needed)".into()),
+                        description: format!("Type into '{}'", item.label),
+                    });
+                }
+            }
+        }
+    }
+    
+    None
 }
 
 // AI Service - Ollama Integration

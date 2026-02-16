@@ -28,7 +28,7 @@ fn to_wstring(s: &str) -> Vec<u16> {
 
 
 mod agent;
-use agent::{AgentPlan, DOMItem, call_ai, call_agent_planner};
+use agent::{AgentPlan, DOMItem, call_ai, call_agent_planner, heuristic_planner};
 
 // Topbar height (horizontal layout)
 const TOPBAR_HEIGHT: i32 = 90;
@@ -418,15 +418,32 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                     if let Ok(wv) = ctrl.get_webview() {
                                         let sidebar_ctrl = s.borrow().sidebar_controller.clone();
                                         
-                                        // Load scanner script
-                                        let script = std::fs::read_to_string("flxtra_browser/src/agent_scanner.js")
-                                            .unwrap_or_else(|_| "[]".to_string());
+                                        // Load scanner script (check multiple paths)
+                                        let cwd = std::env::current_dir().unwrap_or_default();
+                                        let scanner_path = if cwd.join("src/agent_scanner.js").exists() {
+                                            cwd.join("src/agent_scanner.js")
+                                        } else if cwd.join("flxtra_browser/src/agent_scanner.js").exists() {
+                                            cwd.join("flxtra_browser/src/agent_scanner.js")
+                                        } else {
+                                            cwd.join("agent_scanner.js")
+                                        };
+                                        info!("Agent scanner path: {:?}", scanner_path);
+                                        
+                                        let script = std::fs::read_to_string(&scanner_path)
+                                            .unwrap_or_else(|_| { 
+                                                error!("Could not read agent_scanner.js!");
+                                                "JSON.stringify([])".to_string() 
+                                            });
                                             
                                         wv.execute_script(&script, move |dom_json| {
-                                            let dom: Vec<DOMItem> = serde_json::from_str(&dom_json).unwrap_or_default();
+                                            // Parse WebView2 result (double JSON)
+                                            let inner: String = serde_json::from_str(&dom_json).unwrap_or(dom_json.clone());
+                                            let dom: Vec<DOMItem> = serde_json::from_str(&inner).unwrap_or_default();
+                                            info!("Agent-start scanned {} elements", dom.len());
                                             
-                                            // Call Planner
-                                            if let Some(plan) = call_agent_planner(&goal, &dom) {
+                                            // Call Planner (AI first, then heuristic fallback)
+                                            if let Some(plan) = call_agent_planner(&goal, &dom).or_else(|| heuristic_planner(&goal, &dom)) {
+                                                info!("Agent-start plan: {:?}", plan);
                                                 // Store plan
                                                 STATE.with(|s| s.borrow_mut().pending_plan = Some(plan.clone()));
                                                 
@@ -440,6 +457,8 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                         let _ = sb_wv.post_web_message_as_json(&response.to_string());
                                                      }
                                                  }
+                                             } else {
+                                                 error!("Agent-start: planner returned None");
                                              }
                                              Ok(())
                                          }).unwrap_or_else(|e| error!("Agent start error: {:?}", e));
@@ -481,25 +500,45 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                 STATE.with(|s| {
                                     if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
                                         if let Ok(wv) = ctrl.get_webview() {
-                                            let script = match p.action.as_str() {
-                                                "click" => format!(
-                                                    "document.querySelector('[data-flxtra-id=\"{}\"]').click();", 
-                                                    p.target
-                                                ),
+                                            match p.action.as_str() {
+                                                "navigate" => {
+                                                    let url = p.value.unwrap_or_default();
+                                                    info!("Agent navigating to: {}", url);
+                                                    let _ = wv.navigate(&url);
+                                                },
+                                                "click" => {
+                                                    let script = format!(
+                                                        "document.querySelector('[data-flxtra-id=\"{}\"]').click();", 
+                                                        p.target
+                                                    );
+                                                    let _ = wv.execute_script(&script, |_| Ok(()));
+                                                },
                                                 "type" => {
                                                     let safe_value = serde_json::to_string(&p.value.unwrap_or_default()).unwrap_or_else(|_| "\"\"".to_string());
-                                                    format!(
-                                                        "let el = document.querySelector('[data-flxtra-id=\"{}\"]'); if(el) {{ el.value = {}; el.dispatchEvent(new Event('input', {{ bubbles: true }})); }}", 
+                                                    let script = format!(
+                                                        "let el = document.querySelector('[data-flxtra-id=\"{}\"]'); if(el) {{ el.focus(); el.value = {}; el.dispatchEvent(new Event('input', {{ bubbles: true }})); el.dispatchEvent(new Event('change', {{ bubbles: true }})); }}", 
                                                         p.target, safe_value
-                                                    )
+                                                    );
+                                                    let _ = wv.execute_script(&script, |_| Ok(()));
                                                 },
-                                                "scroll" => "window.scrollBy(0, 500);".to_string(),
-                                                _ => "".to_string()
-                                            };
-                                            
-                                            if !script.is_empty() {
-                                                let _ = wv.execute_script(&script, |_| Ok(()));
+                                                "scroll" => {
+                                                    let _ = wv.execute_script("window.scrollBy(0, 500);", |_| Ok(()));
+                                                },
+                                                _ => {}
                                             }
+                                        }
+                                    }
+                                });
+                                
+                                // Send done message to AI panel
+                                STATE.with(|s| {
+                                    if let Some(ctrl) = &s.borrow().ai_sidebar_controller {
+                                        if let Ok(wv) = ctrl.get_webview() {
+                                            let msg = serde_json::json!({
+                                                "type": "agent-done",
+                                                "content": p.description
+                                            });
+                                            let _ = wv.post_web_message_as_json(&msg.to_string());
                                         }
                                     }
                                 });
@@ -714,7 +753,12 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                             let hwnd_raw = STATE.with(|s| s.borrow().hwnd).map(|h| h.0 as usize).unwrap_or(0);
                                             if hwnd_raw != 0 {
                                                 std::thread::spawn(move || {
-                                                    let plan = call_agent_planner(&goal_clone, &dom);
+                                                    // Try AI planner first, fall back to heuristic
+                                                    let plan = call_agent_planner(&goal_clone, &dom)
+                                                        .or_else(|| {
+                                                            info!("AI planner failed, trying heuristic");
+                                                            heuristic_planner(&goal_clone, &dom)
+                                                        });
                                                     
                                                     // Store plan and send to UI
                                                     let plan_json = serde_json::json!({
@@ -900,14 +944,80 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             LRESULT(0)
         }
         msg if msg == WM_APP + 2 => {
-            // Agent Plan Received
+            // Agent Plan Received — AUTO-EXECUTE immediately
             let ptr = wparam.0 as *mut String;
             let plan_json = unsafe { Box::from_raw(ptr) };
             
+            let mut executed = false;
+            let mut plan_desc = String::new();
+            
+            if let Ok(wrapper) = serde_json::from_str::<serde_json::Value>(&plan_json) {
+                if let Some(plan_val) = wrapper.get("plan") {
+                    if !plan_val.is_null() {
+                        if let Ok(plan) = serde_json::from_value::<AgentPlan>(plan_val.clone()) {
+                            plan_desc = plan.description.clone();
+                            info!("Auto-executing agent plan: {:?}", plan);
+                            
+                            let active_id = STATE.with(|s| s.borrow().active_tab_id);
+                            
+                            STATE.with(|s| {
+                                if let Some(ctrl) = s.borrow().content_controllers.get(&active_id) {
+                                    if let Ok(wv) = ctrl.get_webview() {
+                                        match plan.action.as_str() {
+                                            "navigate" => {
+                                                let url = plan.value.clone().unwrap_or_default();
+                                                info!("Agent navigating to: {}", url);
+                                                let _ = wv.navigate(&url);
+                                                executed = true;
+                                            },
+                                            "click" => {
+                                                let script = format!(
+                                                    "var el=document.querySelector('[data-flxtra-id=\"{}\"]');if(el)el.click();", 
+                                                    plan.target
+                                                );
+                                                let _ = wv.execute_script(&script, |_| Ok(()));
+                                                executed = true;
+                                            },
+                                            "type" => {
+                                                let val = plan.value.clone().unwrap_or_default();
+                                                let safe_val = serde_json::to_string(&val).unwrap_or("\"\"".into());
+                                                let script = format!(
+                                                    "var el=document.querySelector('[data-flxtra-id=\"{}\"]');if(el){{el.focus();el.value={};el.dispatchEvent(new Event('input',{{bubbles:true}}));el.dispatchEvent(new Event('change',{{bubbles:true}}));}}", 
+                                                    plan.target, safe_val
+                                                );
+                                                let _ = wv.execute_script(&script, |_| Ok(()));
+                                                executed = true;
+                                            },
+                                            "scroll" => {
+                                                let _ = wv.execute_script("window.scrollBy(0,500);", |_| Ok(()));
+                                                executed = true;
+                                            },
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Notify AI panel of result
             STATE.with(|s| {
                 if let Some(ctrl) = &s.borrow().ai_sidebar_controller {
                     if let Ok(wv) = ctrl.get_webview() {
-                        let _ = wv.post_web_message_as_json(&plan_json);
+                        let msg = if executed {
+                            serde_json::json!({
+                                "type": "agent-done",
+                                "content": format!("✅ {}", plan_desc)
+                            })
+                        } else {
+                            serde_json::json!({
+                                "type": "agent-done",
+                                "content": "❌ Could not execute this action."
+                            })
+                        };
+                        let _ = wv.post_web_message_as_json(&msg.to_string());
                     }
                 }
             });
