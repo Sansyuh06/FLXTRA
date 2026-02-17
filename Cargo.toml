@@ -5,6 +5,7 @@ members = [
     "flxtra_net",
     "flxtra_filter",
     "flxtra_browser",
+    "flxtra_mcp",
 ]
 
 [workspace.package]
