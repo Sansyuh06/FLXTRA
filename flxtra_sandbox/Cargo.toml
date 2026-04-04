@@ -1,0 +1,16 @@
+[package]
+name = "flxtra_sandbox"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+tokio.workspace = true
+
+# Platform-specific sandboxing will be added in Phase 3
+# Windows: AppContainer support
+# Linux: seccomp-bpf support  
+# macOS: App Sandbox support
+

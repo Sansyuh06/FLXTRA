@@ -1,0 +1,11 @@
+[package]
+name = "flxtra_llm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+tokio.workspace = true
+# Will add candle or llama-cpp-rs in Phase 5

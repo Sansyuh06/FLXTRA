@@ -6,6 +6,16 @@ members = [
     "flxtra_filter",
     "flxtra_browser",
     "flxtra_mcp",
+    "flxtra_html",
+    "flxtra_css",
+    "flxtra_layout",
+    "flxtra_render",
+    "flxtra_js",
+    "flxtra_sandbox",
+    "flxtra_agents",
+    "flxtra_llm",
+    "flxtra_memory",
+    "flxtra_ui",
 ]
 
 [workspace.package]

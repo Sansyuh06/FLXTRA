@@ -315,6 +315,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "flxtra_agents"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "flxtra_core",
+ "flxtra_llm",
+ "flxtra_mcp",
+ "flxtra_memory",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "flxtra_browser"
 version = "0.1.0"
 dependencies = [
@@ -352,6 +365,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "flxtra_css"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
+]
+
+[[package]]
 name = "flxtra_filter"
 version = "0.1.0"
 dependencies = [
@@ -362,6 +383,38 @@ dependencies = [
  "serde",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "flxtra_html"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
+]
+
+[[package]]
+name = "flxtra_js"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
+]
+
+[[package]]
+name = "flxtra_layout"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
+]
+
+[[package]]
+name = "flxtra_llm"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
 ]
 
 [[package]]
@@ -378,6 +431,14 @@ dependencies = [
  "thiserror",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "flxtra_memory"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
 ]
 
 [[package]]
@@ -400,6 +461,31 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "flxtra_render"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
+]
+
+[[package]]
+name = "flxtra_sandbox"
+version = "0.1.0"
+dependencies = [
+ "flxtra_core",
+ "tokio",
+]
+
+[[package]]
+name = "flxtra_ui"
+version = "0.1.0"
+dependencies = [
+ "flxtra_browser",
+ "flxtra_core",
+ "tokio",
 ]
 
 [[package]]

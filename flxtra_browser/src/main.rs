@@ -100,7 +100,7 @@ impl BrowserState {
         let hwnd = match self.hwnd { Some(h) => h, None => return };
         
         let mut rect = RECT::default();
-        unsafe { GetClientRect(hwnd, &mut rect); }
+        unsafe { let _ = GetClientRect(hwnd, &mut rect); }
         let width = rect.right - rect.left;
         let height = rect.bottom - rect.top;
         
@@ -213,7 +213,7 @@ fn init_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             
             // Layout
             let mut rect = RECT::default();
-            unsafe { GetClientRect(hwnd, &mut rect); }
+            unsafe { let _ = GetClientRect(hwnd, &mut rect); }
             let side_rect = winapi::shared::windef::RECT {
                 left: 0, top: 0,
                 right: rect.right - rect.left,
@@ -587,7 +587,7 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
             
             // Initial layout (will be properly set by layout_content)
             let mut rect = RECT::default();
-            unsafe { GetClientRect(hwnd, &mut rect); }
+            unsafe { let _ = GetClientRect(hwnd, &mut rect); }
             let width = rect.right - rect.left;
             let height = rect.bottom - rect.top;
             let ai_rect = winapi::shared::windef::RECT {
@@ -710,7 +710,7 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                     // Send result back to UI thread
                                                     let boxed = Box::new(response_text);
                                                     let ptr = Box::into_raw(boxed);
-                                                    unsafe { PostMessageW(hwnd, WM_APP + 1, WPARAM(ptr as usize), LPARAM(0)); }
+                                                    unsafe { let _ = PostMessageW(hwnd, WM_APP + 1, WPARAM(ptr as usize), LPARAM(0)); }
                                                 });
                                             }
                                             Ok(())
@@ -774,7 +774,7 @@ fn create_ai_sidebar(hwnd: HWND) -> anyhow::Result<()> {
                                                     let hwnd = HWND(hwnd_raw as *mut std::ffi::c_void);
                                                     let boxed = Box::new(plan_json);
                                                     let ptr = Box::into_raw(boxed);
-                                                    unsafe { PostMessageW(hwnd, WM_APP + 2, WPARAM(ptr as usize), LPARAM(0)); }
+                                                    unsafe { let _ = PostMessageW(hwnd, WM_APP + 2, WPARAM(ptr as usize), LPARAM(0)); }
                                                 });
                                             }
                                             Ok(())
