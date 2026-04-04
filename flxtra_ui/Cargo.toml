@@ -7,8 +7,4 @@ authors.workspace = true
 
 [dependencies]
 flxtra_core = { path = "../flxtra_core" }
-flxtra_browser = { path = "../flxtra_browser" }
 tokio.workspace = true
-
-# UI can use either Tauri + WebView or native platform APIs
-# Currently exploring architectural approach
