@@ -44,7 +44,7 @@ type State =
   | "RUN" | "WALK" | "IDLE" | "JUMP" | "FALL" | "LAND"
   | "HANG" | "WALLRUN" | "BACKFLIP" | "VAULT" | "SLIDE"
   | "DIVEROLL" | "CATCHBREATH" | "TIC_TAC" | "PRECISION_JUMP"
-  | "CURSOR_CHASE" | "CURSOR_HELD" | "CURSOR_FLUNG" | "WAVE" | "HIDDEN"
+  | "CURSOR_CHASE" | "CURSOR_HELD" | "CURSOR_FLUNG" | "WAVE" | "HIDDEN" | "SIT"
 
 export function ParkourStickman() {
   const cvs = useRef<HTMLCanvasElement>(null)
@@ -210,6 +210,12 @@ export function ParkourStickman() {
     const trail: Pose[] = []
     let _curPose = neutral(hipX, hipY)
 
+    // Hand-Drawn Soft Body Physics Variables
+    let softSquashY = 1.0
+    let softSquashX = 1.0
+    let hairSwayX = 0
+    let hairSwayV = 0
+
     const spawnDust = (x: number, y: number, n = 4) => {
       for (let i = 0; i < n; i++) {
         const a = -Math.PI + (Math.random()-0.5)*1.4
@@ -248,27 +254,28 @@ export function ParkourStickman() {
         case "PRECISION_JUMP": actionDuration = 800; break
         case "WAVE":        actionDuration = 3000 + Math.random() * 1500; break // Longer, friendlier wave
         case "HIDDEN":      actionDuration = 10000; break // 10 seconds hiding!
+        case "SIT":         actionDuration = 5000 + Math.random() * 5000; break // Laptop session
         default:            actionDuration = 2000; break
       }
     }
 
     const GAIT = [
-      { lL:-42, rL: 32, lA: 36, rA:-32, lean:0.25, bob:-1 },
-      { lL:-24, rL: 42, lA: 22, rA:-42, lean:0.22, bob: 3 },
-      { lL:  8, rL: 44, lA:-8,  rA:-44, lean:0.25, bob:-1 },
-      { lL: 30, rL: 24, lA:-30, rA:-22, lean:0.28, bob:-3 },
-      { lL: 44, rL: -8, lA:-44, rA:  8, lean:0.25, bob:-1 },
-      { lL: 42, rL:-30, lA:-42, rA: 30, lean:0.22, bob: 3 },
-      { lL: 24, rL:-42, lA:-22, rA: 42, lean:0.25, bob:-1 },
+      { lL:-50, rL: 35, lA: 55, rA:-45, lean:0.4, bob:-2 },
+      { lL:-30, rL: 55, lA: 35, rA:-55, lean:0.45, bob: 4 },
+      { lL: 15, rL: 60, lA:-15, rA:-60, lean:0.5, bob:-2 },
+      { lL: 45, rL: 30, lA:-45, rA:-30, lean:0.55, bob:-4 },
+      { lL: 60, rL:-15, lA:-60, rA: 15, lean:0.5, bob:-2 },
+      { lL: 55, rL:-30, lA:-55, rA: 30, lean:0.45, bob: 4 },
+      { lL: 35, rL:-50, lA:-35, rA: 50, lean:0.4, bob:-2 },
     ]
 
     const WALK_GAIT = [
-      { lL:-20, rL: 16, lA: 15, rA:-15 },
-      { lL: -8, rL: 22, lA:  5, rA:-20 },
-      { lL: 10, rL: 18, lA:-10, rA:-15 },
-      { lL: 20, rL:  4, lA:-20, rA: -5 },
-      { lL: 18, rL:-10, lA:-15, rA: 10 },
-      { lL: 10, rL:-20, lA: -5, rA: 20 },
+      { lL:-35, rL: 25, lA: 30, rA:-30 },
+      { lL:-15, rL: 35, lA: 10, rA:-35 },
+      { lL: 15, rL: 25, lA:-15, rA:-25 },
+      { lL: 35, rL: 10, lA:-35, rA:-10 },
+      { lL: 25, rL:-15, lA:-25, rA: 15 },
+      { lL: 15, rL:-35, lA:-10, rA: 35 },
     ]
 
     const GRAVITY = 0.5
@@ -284,21 +291,17 @@ export function ParkourStickman() {
       const runMode = Math.random() < 0.6 ? "FREE_ROAM" : "SEEK_TEXT"
       const now = Date.now()
 
-      if (activeTime > 8000) {
-         // Run off-screen to hide!
-         targetDestX = hipX < W/2 ? -100 : W + 100
-         facing = targetDestX > hipX ? 1 : -1
-         vx = facing * 7
-         go("RUN")
-         return
-      }
-
-      if (cursorCooldown <= 0 && cursorNear && Math.random() < 0.4) {
+      if (cursorCooldown <= 0 && cursorNear) {
          go("CURSOR_CHASE"); return
       }
 
-      let minX = W, maxX = 0
-      textPlatforms.forEach(p => { minX = Math.min(minX, p.left); maxX = Math.max(maxX, p.right) })
+      // Tighter random generation restricted around text boxes
+      let minX = Math.max(100, W/3)
+      let maxX = Math.min(W - 100, W * 2/3)
+      textPlatforms.forEach(p => { 
+        minX = Math.min(minX, Math.max(100, p.left - 100))
+        maxX = Math.max(maxX, Math.min(W - 100, p.right + 100)) 
+      })
       if (minX > maxX) { minX = W/2 - 50; maxX = W/2 + 50 }
       const cx = (minX + maxX) / 2
       const spread = (maxX - minX) / 2
@@ -317,17 +320,20 @@ export function ParkourStickman() {
       }
 
       if (runMode === "FREE_ROAM") {
-        // Patrol closely around the text block, not randomly across the whole screen
-        targetDestX = Math.max(minX - 50, Math.min(maxX + 50, cx + (Math.random() > 0.5 ? 1 : -1) * (spread + 10 + Math.random()*100)))
+        // Patrol tightly around the central text coordinates, don't run to absolute edges
+        targetDestX = Math.max(minX, Math.min(maxX, cx + (Math.random() > 0.5 ? 1 : -1) * (spread*0.8 + Math.random()*150)))
         facing = targetDestX > hipX ? 1 : -1
         vx = facing * (3 + Math.random()*3)
-        const moves = ["RUN", "WALK", "SLIDE", "DIVEROLL", "CATCHBREATH"]
+        const moves = ["RUN", "WALK", "SLIDE", "DIVEROLL", "JUMP"]
         const nxt = moves[Math.floor(Math.random()*moves.length)] as State
         if (nxt === "SLIDE" || nxt === "DIVEROLL") {
-          vx = facing * 7
+          vx = facing * 6
           if (!recentDid(nxt)) { go(nxt); return }
         }
-        go(Math.random() > 0.3 ? "RUN" : "WALK")
+        if (nxt === "JUMP") {
+           vy = -4; go("JUMP"); return
+        }
+        go(Math.random() > 0.2 ? "RUN" : "WALK")
         return
       }
 
@@ -372,10 +378,9 @@ export function ParkourStickman() {
         }
       }
 
-      // Fallback - strictly limit hyperactivity
+      // Fallback - strictly limit hyperactivity by occasionally doing laptop work
       if (!recentDid("IDLE") && Math.random() < 0.6) { go("IDLE"); return }
-      if (!recentDid("CATCHBREATH") && Math.random() < 0.4) { go("CATCHBREATH"); return }
-      if (!recentDid("WAVE") && Math.random() < 0.3) { facing = Math.random()>0.5?1:-1; go("WAVE"); return }
+      if (!recentDid("SIT") && Math.random() < 0.4) { go("SIT"); return }
       if (!recentDid("WALK") && Math.random() < 0.6) {
         facing = Math.random() > 0.5 ? 1 : -1
         vx = facing * 2.5
@@ -401,6 +406,11 @@ export function ParkourStickman() {
           vy = 0
           if (!grounded) {
             spawnDust(hipX, p.top, 6)
+            
+            // Extreme hand-drawn impact squash!
+            if (prevFY - fY > 10) { softSquashY = 0.5; softSquashX = 1.4 }
+            else if (prevFY - fY > 4) { softSquashY = 0.75; softSquashX = 1.2 }
+
             p.lastVisited = Date.now()
             flipAngle = 0
             if (["JUMP","FALL","PRECISION_JUMP","DIVEROLL"].includes(state)) {
@@ -474,25 +484,237 @@ export function ParkourStickman() {
       }
     }
 
-    const drawCharBody = (p: Pose, ctx: CanvasRenderingContext2D, isBg: boolean) => {
-      ctx.lineWidth = isBg ? 16 : 8
-      ctx.strokeStyle = isBg ? "#000" : RED
-      ctx.fillStyle = isBg ? "#000" : RED
+    const drawCharBody = (p: Pose, ctx: CanvasRenderingContext2D) => {
+      const currentFacing = facing 
       
-      ctx.beginPath(); ctx.moveTo(p.neck.x,p.neck.y); ctx.lineTo(p.hip.x,p.hip.y); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(p.sL.x,p.sL.y); ctx.quadraticCurveTo(p.eL.x,p.eL.y,p.hL.x,p.hL.y); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(p.sR.x,p.sR.y); ctx.quadraticCurveTo(p.eR.x,p.eR.y,p.hR.x,p.hR.y); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(p.hip.x,p.hip.y); ctx.quadraticCurveTo(p.kL.x,p.kL.y,p.fL.x,p.fL.y); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(p.hip.x,p.hip.y); ctx.quadraticCurveTo(p.kR.x,p.kR.y,p.fR.x,p.fR.y); ctx.stroke()
+      const drawShoe = (foot: V2) => {
+        ctx.fillStyle = "#000"; ctx.beginPath()
+        ctx.ellipse(foot.x + currentFacing*4, foot.y+2, 9, 5, 0, 0, Math.PI*2)
+        ctx.fill()
+      }
 
-      ctx.beginPath(); ctx.arc(p.head.x, p.head.y, HR + (isBg ? 3 : 0), 0, Math.PI*2); ctx.fill()
+      const drawLeg = (hip: V2, knee: V2, foot: V2, color: string) => {
+        const dx1 = knee.x - hip.x, dy1 = knee.y - hip.y
+        const nx1 = -dy1 / (Math.hypot(dx1, dy1) || 1)
+        const ny1 = dx1 / (Math.hypot(dx1, dy1) || 1)
+
+        const dx2 = foot.x - knee.x, dy2 = foot.y - knee.y
+        const nx2 = -dy2 / (Math.hypot(dx2, dy2) || 1)
+        const ny2 = dx2 / (Math.hypot(dx2, dy2) || 1)
+
+        // Ultra Loose Straight-Leg Cargo Pants (Very Baggy overall)
+        const hw = 4.5, kw = 6, fw = 6.5
+        
+        const tX = (hip.x + knee.x)/2, tY = (hip.y + knee.y)/2
+        const cX = (knee.x + foot.x)/2, cY = (knee.y + foot.y)/2
+
+        ctx.fillStyle = color
+        ctx.strokeStyle = "#000"
+        ctx.lineWidth = 2
+        ctx.lineJoin = "round"
+
+        // Organic baggy cloth boundaries
+        ctx.beginPath()
+        ctx.moveTo(hip.x + nx1*hw, hip.y + ny1*hw)
+        ctx.quadraticCurveTo(tX + nx1*(kw+1), tY + ny1*(kw+1), knee.x + nx1*kw, knee.y + ny1*kw)
+        ctx.quadraticCurveTo(cX + nx2*(kw+1), cY + ny2*(kw+1), foot.x + nx2*fw, foot.y + ny2*fw)
+        ctx.lineTo(foot.x - nx2*(fw+1), foot.y - ny2*(fw+1)) // slightly wider cuff at the shoe
+        ctx.quadraticCurveTo(cX - nx2*(kw-2), cY - ny2*(kw-2), knee.x - nx1*kw, knee.y - ny1*kw)
+        ctx.quadraticCurveTo(tX - nx1*(kw-2), tY - ny1*(kw-2), hip.x - nx1*hw, hip.y - ny1*hw)
+        ctx.closePath()
+        ctx.fill(); ctx.stroke()
+
+        // Pockets & User's Textures Layer
+        ctx.save()
+        ctx.clip()
+        
+        // 1. User's Hand-Drawn Swirl Textures (Maintained as requested)
+        ctx.beginPath()
+        ctx.strokeStyle = "rgba(0,0,0,0.18)"
+        ctx.lineWidth = 2
+        ctx.moveTo(hip.x, hip.y); ctx.quadraticCurveTo(knee.x+9, (hip.y+knee.y)/2, knee.x, knee.y)
+        ctx.moveTo(knee.x, knee.y); ctx.quadraticCurveTo(foot.x-10, (knee.y+foot.y)/2, foot.x, foot.y)
+        ctx.moveTo(knee.x, knee.y); ctx.quadraticCurveTo(foot.x+10, (knee.y+foot.y)/2, foot.x, foot.y)
+        ctx.stroke()
+        
+        // 2. Cargo Side-Pocket Mapped to Thigh Action Angle
+        const thighAng = Math.atan2(knee.y - hip.y, knee.x - hip.x)
+        ctx.translate(tX, tY)
+        ctx.rotate(thighAng)
+        
+        ctx.fillStyle = "rgba(0,0,0,0.08)"
+        ctx.strokeStyle = "rgba(0,0,0,0.35)"
+        ctx.lineWidth = 1.5
+        // Box pocket offset slightly forward to match side seam
+        ctx.fillRect(-2, -7, 13, 11)
+        ctx.strokeRect(-2, -7, 13, 11)
+        // Cargo Flap
+        ctx.fillStyle = "rgba(0,0,0,0.15)"
+        ctx.fillRect(-2, -7, 13, 4)
+        ctx.strokeRect(-2, -7, 13, 4)
+
+        ctx.restore()
+
+        drawShoe(foot)
+      }
+
+      const drawLaptop = (hand: V2) => {
+        ctx.save()
+        ctx.translate(hand.x, hand.y)
+        ctx.scale(currentFacing, 1)
+        
+        ctx.fillStyle = "#777"; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(14, 2); ctx.lineTo(11, 6); ctx.lineTo(-9, 6); ctx.closePath()
+        ctx.fill(); ctx.stroke()
+        
+        ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.arc(2, 4, 3.5, 0, Math.PI*2); ctx.fill(); ctx.stroke()
+        
+        ctx.fillStyle = "#a3a3a3"
+        ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(14, 2); ctx.lineTo(10, -14); ctx.lineTo(-10, -14); ctx.closePath()
+        ctx.fill(); ctx.stroke()
+        
+        ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(-1, -6, 2.5, 0, Math.PI*2); ctx.fill()
+        
+        ctx.fillStyle = "#4285F4"; ctx.fillRect(-7, -11, 3.5, 3.5)
+        ctx.fillStyle = "#fbbc05"; ctx.beginPath(); ctx.arc(5, -3, 1.5, 0, Math.PI*2); ctx.fill()
+        ctx.fillStyle = "#ea4335"; ctx.beginPath(); ctx.arc(4, -10, 1.2, 0, Math.PI*2); ctx.fill()
+        ctx.restore()
+      }
+
+      const drawArm = (shoulder: V2, elbow: V2, hand: V2, isRight: boolean) => {
+        const isHoldingLaptop = isRight && ["IDLE", "SIT"].includes(state)
+
+        // Arms are thin stick-like sleeves
+        ctx.lineWidth = 6.5; ctx.strokeStyle = "#000"; ctx.lineCap = "round"; ctx.lineJoin = "round"
+        ctx.beginPath(); ctx.moveTo(shoulder.x, shoulder.y); ctx.lineTo(elbow.x, elbow.y); ctx.lineTo(hand.x, hand.y); ctx.stroke()
+        ctx.lineWidth = 3.5; ctx.strokeStyle = "#222"; ctx.stroke()
+
+        if (isHoldingLaptop) {
+          drawLaptop(hand)
+        } else {
+          ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.2
+          ctx.beginPath(); ctx.arc(hand.x, hand.y, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke()
+          ctx.beginPath(); ctx.moveTo(hand.x, hand.y-1); ctx.lineTo(hand.x + currentFacing*5, hand.y-2); ctx.stroke()
+          ctx.beginPath(); ctx.moveTo(hand.x, hand.y+1); ctx.lineTo(hand.x + currentFacing*4, hand.y+1); ctx.stroke()
+        }
+      }
+
+      const drawTorso = () => {
+        const neck = p.neck, hip = p.hip
+        const dx = hip.x - neck.x, dy = hip.y - neck.y
+        const len = Math.hypot(dx, dy) || 1
+        const nx = -dy / len, ny = dx / len
+        
+        // Very slim stick-body for the sweater, only slightly widening at waist
+        const nw = 3.5, hw = 5 
+        
+        ctx.fillStyle = "#222"
+        ctx.strokeStyle = "#000"
+        ctx.lineWidth = 2
+        ctx.lineJoin = "round"
+
+        ctx.beginPath()
+        ctx.moveTo(neck.x + nx*nw, neck.y + ny*nw - 3)
+        ctx.lineTo(hip.x + nx*hw, hip.y + ny*hw + 3)
+        ctx.lineTo(hip.x - nx*hw, hip.y - ny*hw + 3)
+        ctx.lineTo(neck.x - nx*nw, neck.y - ny*nw - 3)
+        ctx.closePath()
+        ctx.fill(); ctx.stroke()
+      }
+
+      const drawHead = () => {
+        const hx = p.head.x
+        const hy = p.head.y - 1
+        const f = currentFacing
+        
+        ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5
+        ctx.beginPath(); ctx.arc(hx, hy, 11, 0, Math.PI*2); ctx.fill(); ctx.stroke()
+
+        // Restored Original Hand-Drawn 5-Tuft Hair
+        ctx.save()
+        ctx.translate(hx, hy)
+        ctx.rotate(hairSwayX * 0.05 * f)
+        
+        ctx.fillStyle = "#2c0e0e" 
+        ctx.lineWidth = 2
+        ctx.strokeStyle = "#000"
+        ctx.lineJoin = "round"
+        ctx.lineCap = "round"
+        ctx.beginPath()
+        
+        ctx.moveTo(-f*10, 2) 
+        // Spike 1: Backwards tuft
+        ctx.lineTo(-f*13, -2) 
+        ctx.lineTo(-f*9,  -6)  
+        // Spike 2: High back spike
+        ctx.lineTo(-f*10, -14)
+        ctx.lineTo(-f*4,  -12) 
+        // Spike 3: Main high crown spike
+        ctx.lineTo(f*1,  -17)
+        ctx.lineTo(f*5,  -13) 
+        // Spike 4: Forward top spike
+        ctx.lineTo(f*10, -15) 
+        ctx.lineTo(f*9,  -9) 
+        // Spike 5: Forehead bang
+        ctx.lineTo(f*13, -3) 
+        ctx.lineTo(f*8,   2) 
+        
+        ctx.stroke() 
+        ctx.lineTo(0, 0)
+        ctx.closePath()
+        ctx.fill()
+        
+        ctx.restore()
+
+        // Glasses with distinct bridge
+        const r = 3.8
+        const cL = hx + f * 1
+        const cR = hx + f * 7.5 
+        ctx.strokeStyle = "#000"; ctx.fillStyle = "#fff"; ctx.lineWidth = 1.4
+        // Bridge line
+        ctx.beginPath(); ctx.moveTo(cL, hy-1.5); ctx.lineTo(cR, hy-1.5); ctx.stroke()
+        // White circles
+        ctx.beginPath(); ctx.arc(cL, hy - 1.5, r, 0, Math.PI*2); ctx.fill(); ctx.stroke()
+        ctx.beginPath(); ctx.arc(cR, hy - 1.5, r, 0, Math.PI*2); ctx.fill(); ctx.stroke()
+
+        // Fixed Moustache & Goatee: Thin faint grey scratches under the glasses
+        ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1.2
+        ctx.beginPath()
+        ctx.moveTo(hx + f*1.5, hy+5); ctx.lineTo(hx + f*5, hy+5) 
+        ctx.moveTo(hx + f*2.5, hy+9); ctx.lineTo(hx + f*4, hy+10) 
+        ctx.stroke()
+      }
+
+      // Original light-gray canvas colors for pants
+      const backLeg  = currentFacing === 1 ? { k: p.kL, f: p.fL, c: '#9a9a9a' } : { k: p.kR, f: p.fR, c: '#9a9a9a' }
+      const frontLeg = currentFacing === 1 ? { k: p.kR, f: p.fR, c: '#b5b5b5' } : { k: p.kL, f: p.fL, c: '#b5b5b5' }
+      
+      const backArm  = currentFacing === 1 ? { s: p.sL, e: p.eL, h: p.hL, isRight: false } : { s: p.sR, e: p.eR, h: p.hR, isRight: true }
+      const frontArm = currentFacing === 1 ? { s: p.sR, e: p.eR, h: p.hR, isRight: true } : { s: p.sL, e: p.eL, h: p.hL, isRight: false }
+
+      // ── Soft-Body Global Transformation ───────────────────────────────────────
+      ctx.save()
+      
+      // We translate exactly to the hip, apply dynamic scaling for squash-and-stretch, then pull back!
+      ctx.translate(p.hip.x, p.hip.y)
+      ctx.scale(softSquashX, softSquashY)
+      ctx.translate(-p.hip.x, -p.hip.y)
+
+      drawLeg(p.hip, backLeg.k, backLeg.f, backLeg.c)
+      drawArm(backArm.s, backArm.e, backArm.h, backArm.isRight)
+      drawTorso()
+      drawLeg(p.hip, frontLeg.k, frontLeg.f, frontLeg.c)
+      drawHead()
+      drawArm(frontArm.s, frontArm.e, frontArm.h, frontArm.isRight)
+      
+      ctx.restore() // Clear transformation
     }
 
     const drawChar = (p: Pose, alpha = 1, glow = false, spin = 0) => {
       ctx.save()
       ctx.globalAlpha = alpha
       ctx.lineCap = "round"; ctx.lineJoin = "round"
-      if (glow) { ctx.shadowBlur = 18; ctx.shadowColor = RED }
 
       if (spin !== 0) {
         ctx.translate(p.hip.x, p.hip.y)
@@ -500,15 +722,14 @@ export function ParkourStickman() {
         ctx.translate(-p.hip.x, -p.hip.y)
       }
 
-      drawCharBody(p, ctx, true)
-      drawCharBody(p, ctx, false)
-
+      drawCharBody(p, ctx)
       ctx.restore()
     }
 
     let lastT = performance.now()
     let rafId = 0
     let groundDwell = 0
+    let legPhase = 0
 
     const tick = (now: number) => {
       const dt = Math.min(now - lastT, 40)
@@ -517,6 +738,7 @@ export function ParkourStickman() {
 
       ctx.clearRect(0, 0, W, H)
       timer += dt
+      legPhase += Math.max(0.5, Math.abs(vx)) * dt * 0.015
 
       if (state === "HIDDEN") {
          if (timer > actionDuration) {
@@ -545,7 +767,15 @@ export function ParkourStickman() {
       const cspeed = Math.hypot(mouseVX, mouseVY)
       shakeScore = clamp(shakeScore + Math.max(0, cspeed-12)*0.4 - 1.8*n, 0, 120)
       cursorCooldown = Math.max(0, cursorCooldown - dt)
-      cursorNear = Math.hypot(mouseX-hipX, mouseY-hipY) < 160
+      
+      const distToCursor = Math.hypot(mouseX-hipX, mouseY-hipY)
+      cursorNear = distToCursor < 120
+
+      // Instant interact if directly hovered
+      if (cursorCooldown <= 0 && distToCursor < 50 && !["CURSOR_HELD", "CURSOR_FLUNG", "HIDDEN"].includes(state)) {
+         spawnStars(mouseX, mouseY)
+         go("CURSOR_HELD")
+      }
 
       const frozen = ["HANG","WALLRUN","TIC_TAC","CURSOR_HELD"].includes(state)
       if (!frozen) {
@@ -562,6 +792,25 @@ export function ParkourStickman() {
       checkHang()
       checkObstacles()
 
+      // Organic Soft-Body Momentum Processing
+      // Hair Spring (drags backward based on horizontal velocity)
+      const hairTargetX = -vx * 1.5 
+      hairSwayV += (hairTargetX - hairSwayX) * 0.15
+      hairSwayV *= 0.8  // dampening to prevent endless wobble
+      hairSwayX += hairSwayV
+
+      // Core Squash and Stretch depending on Air-Time
+      let targetSquashY = 1.0 + Math.abs(vy) * 0.015 // stretch downwards when falling
+      let targetSquashX = 1.0 - Math.abs(vy) * 0.005 // get thinner
+      if (["SLIDE", "DIVEROLL", "SIT"].includes(state)) {
+         targetSquashY = 0.85
+         targetSquashX = 1.15
+      }
+
+      // Smooth restoration to targets
+      softSquashY += (targetSquashY - softSquashY) * 0.25
+      softSquashX += (targetSquashX - softSquashX) * 0.25
+
       if (grounded && groundY > H - 100) {
         groundDwell += dt
         if (groundDwell > 4000 && textPlatforms.length > 0) {
@@ -570,11 +819,8 @@ export function ParkourStickman() {
       } else { groundDwell = 0 }
 
       if (hipX < -50 || hipX > W + 50 || hipY > H + 150 || hipY < -200) {
-        if (activeTime > 8000) {
-           hipX = -1000; go("HIDDEN")
-        } else {
-           initPosition()
-        }
+         initPosition()
+         activeTime = 0
       }
 
       const ny = hipY - SP
@@ -584,44 +830,66 @@ export function ParkourStickman() {
 
       switch (state) {
         case "RUN": {
-          vx = facing * 5.2
-          const gLen = GAIT.length
-          const raw = (timer/55) % gLen
-          const i0 = Math.floor(raw) % gLen
-          const i1 = (i0+1) % gLen
-          const f = raw - Math.floor(raw)
-          const g0 = GAIT[i0]
-          const g1 = GAIT[i1]
-          const lL = lerp(g0.lL,g1.lL,f)*Math.PI/180*facing
-          const rL = lerp(g0.rL,g1.rL,f)*Math.PI/180*facing
-          const lA = lerp(g0.lA,g1.lA,f)*Math.PI/180*facing
-          const rA = lerp(g0.rA,g1.rA,f)*Math.PI/180*facing
-          const lean = lerp(g0.lean,g1.lean,f)*facing
-          const bob  = lerp(g0.bob,g1.bob,f)
+          vx += (facing * 6.0 - vx) * 0.08 * n // Slower acceleration, smoother momentum glide
+          
+          const speedFactor = Math.min(1.2, Math.abs(vx) / 5.5)
+          // Master running clock 0.0 to 1.0 continuously looping
+          const runClock = (legPhase * 0.035) % 1.0
+          const pL = runClock
+          const pR = (runClock + 0.5) % 1.0
+
+          // True Fancy Pants locomotion parameters (Fluidity Override)
+          const stride = 34 * speedFactor   // Stretching stride
+          const lift = 22 * speedFactor     // High knee kick back
+          const bob = Math.cos(runClock * Math.PI * 4) * 4.5 * speedFactor // Smooth bouncing
+          
+          const tilt = Math.max(0, Math.min(1.0, Math.abs(vx) / 5.0))
+          const lean = 0.65 * facing * tilt // Smooth atmospheric tilt pushing momentum
 
           const neck = { x: hipX+Math.sin(lean)*SP, y: hipY-Math.cos(lean)*SP+bob }
-          tar.hip = { x:hipX, y:hipY+bob }; tar.neck = neck
+          tar.hip = { x:hipX, y:hipY+bob+5 }; tar.neck = neck
           tar.head = { x:neck.x+Math.sin(lean)*(NL+HR), y:neck.y-Math.cos(lean)*(NL+HR) }
           tar.sL = {x:neck.x-6,y:neck.y}; tar.sR = {x:neck.x+6,y:neck.y}
 
-          const fLt = { x:hipX+Math.sin(lL)*(UL+LL+2), y:Math.min(groundY, hipY+Math.cos(Math.abs(lL))*(UL+LL+2)) }
-          const fRt = { x:hipX+Math.sin(rL)*(UL+LL+2), y:Math.min(groundY, hipY+Math.cos(Math.abs(rL))*(UL+LL+2)) }
-          tar.kL = ik(hipX,hipY+bob,fLt.x,fLt.y,UL,LL,-facing); tar.fL = fLt
-          tar.kR = ik(hipX,hipY+bob,fRt.x,fRt.y,UL,LL,-facing); tar.fR = fRt
+          // Left Foot continuous formula
+          const fLx = hipX + Math.cos(pL * Math.PI * 2) * stride * facing
+          const fLy = groundY - (pL > 0.5 ? Math.sin((pL - 0.5) * 2 * Math.PI) * lift : 0)
+          
+          // Right Foot continuous formula
+          const fRx = hipX + Math.cos(pR * Math.PI * 2) * stride * facing
+          const fRy = groundY - (pR > 0.5 ? Math.sin((pR - 0.5) * 2 * Math.PI) * lift : 0)
 
-          const hLt = { x:neck.x+Math.sin(lA)*(UA+LA), y:neck.y+Math.cos(lA)*(UA+LA) }
-          const hRt = { x:neck.x+Math.sin(rA)*(UA+LA), y:neck.y+Math.cos(rA)*(UA+LA) }
-          tar.eL = ik(neck.x-6,neck.y,hLt.x,hLt.y,UA,LA, facing); tar.hL = hLt
-          tar.eR = ik(neck.x+6,neck.y,hRt.x,hRt.y,UA,LA, facing); tar.hR = hRt
+          tar.kL = ik(tar.hip.x, tar.hip.y, fLx, fLy, UL, LL, -facing); tar.fL = {x:fLx, y:fLy}
+          tar.kR = ik(tar.hip.x, tar.hip.y, fRx, fRy, UL, LL, -facing); tar.fR = {x:fRx, y:fRy}
 
-          if (timer > actionDuration) plan()
+          // Opposite sweeping arms
+          const armReach = 26 * speedFactor
+          const hLx = neck.x + Math.cos(pR * Math.PI * 2) * armReach * facing
+          const hLy = neck.y + 12 + Math.abs(Math.sin(pR * Math.PI * 2)) * 8
+          
+          const hRx = neck.x + Math.cos(pL * Math.PI * 2) * armReach * facing
+          const hRy = neck.y + 12 + Math.abs(Math.sin(pL * Math.PI * 2)) * 8
+
+          tar.eL = ik(tar.sL.x, tar.sL.y, hLx, hLy, UA, LA, facing); tar.hL = {x:hLx, y:hLy}
+          tar.eR = ik(tar.sR.x, tar.sR.y, hRx, hRy, UA, LA, facing); tar.hR = {x:hRx, y:hRy}
+
+          if (runClock < 0.05 || (runClock > 0.5 && runClock < 0.55)) {
+             spawnDust(hipX, groundY, 0.4)
+          }
+          
+          if (timer > actionDuration) {
+            const r = Math.random()
+            if (r < 0.15) go("CATCHBREATH")
+            else if (r < 0.30) go("WAVE")
+            else plan()
+          }
           break
         }
 
         case "WALK": {
-          vx = facing * 2.2
+          vx += (facing * 2.8 - vx) * 0.1 * n
           const wLen = WALK_GAIT.length
-          const raw = (timer/120) % wLen
+          const raw = (legPhase * 0.5) % wLen
           const i0 = Math.floor(raw) % wLen
           const i1 = (i0+1) % wLen
           const f = raw - Math.floor(raw)
@@ -659,45 +927,90 @@ export function ParkourStickman() {
           break
         }
 
+        case "SIT": {
+          vx *= Math.pow(0.5, n) // rapid stop
+          tar = neutral(hipX, hipY)
+          
+          // Drop hips deep to the ground
+          tar.hip = { x: hipX, y: groundY - 14 }
+          const tilt = 20 * Math.PI / 180
+          tar.neck = { x: hipX + facing*Math.sin(tilt)*SP, y: tar.hip.y - Math.cos(tilt)*SP } // Hunched over
+          tar.head = { x: tar.neck.x + facing*4, y: tar.neck.y - NL - HR + 2 }
+          
+          // Cross-legged lap tracking ground
+          tar.kL = { x: hipX + facing*10, y: groundY - 8 }; tar.fL = { x: hipX - facing*4, y: groundY - 2 }
+          tar.kR = { x: hipX - facing*6,  y: groundY - 6 }; tar.fR = { x: hipX + facing*12, y: groundY - 2 }
+          
+          tar.sL = { x: tar.neck.x - 5, y: tar.neck.y }
+          tar.sR = { x: tar.neck.x + 5, y: tar.neck.y }
+          
+          // Right arm holds laptop, left arm types rapidly
+          const laptopCenter = { x: hipX + facing*14, y: groundY - 14 }
+          
+          tar.hR = laptopCenter
+          tar.eR = ik(tar.sR.x, tar.sR.y, tar.hR.x, tar.hR.y, UA, LA, facing)
+          
+          // Typing left arm (insane rapid jitter oscillation based on global Date.now)
+          const tNow = Date.now()
+          const typingY = laptopCenter.y - 4 + Math.sin(tNow * 0.05) * 4
+          const typingX = laptopCenter.x - facing * 4 + Math.cos(tNow * 0.07) * 5
+          tar.hL = { x: typingX, y: typingY }
+          tar.eL = ik(tar.sL.x, tar.sL.y, tar.hL.x, tar.hL.y, UA, LA, facing)
+
+          if (timer > actionDuration) plan()
+          break
+        }
+
         case "CATCHBREATH": {
-          vx = 0
-          const br=Math.sin(timer*0.012)*3, bend=40*Math.PI/180
+          vx *= 0.5
+          const br=Math.sin(timer*0.012)*2, bend=20*Math.PI/180
           tar.hip={x:hipX,y:hipY}
           tar.neck={x:hipX+facing*Math.sin(bend)*SP, y:hipY-Math.cos(bend)*SP+br}
           tar.head={x:tar.neck.x+facing*5,y:tar.neck.y-NL-HR+br}
           tar.sL={x:tar.neck.x-5,y:tar.neck.y}; tar.sR={x:tar.neck.x+5,y:tar.neck.y}
-          const ky=hipY+UL*0.6
-          tar.hL={x:hipX+facing*4-7,y:ky}; tar.hR={x:hipX+facing*4+7,y:ky}
+          const ky=hipY+UL*0.3
+          tar.hL={x:hipX+facing*6-6,y:ky}; tar.hR={x:hipX+facing*6+6,y:ky}
           tar.eL=ik(tar.sL.x,tar.sL.y,tar.hL.x,tar.hL.y,UA,LA, facing)
           tar.eR=ik(tar.sR.x,tar.sR.y,tar.hR.x,tar.hR.y,UA,LA, facing)
-          tar.kL={x:hipX-6,y:ky}; tar.fL={x:hipX-8,y:groundY}
-          tar.kR={x:hipX+6,y:ky}; tar.fR={x:hipX+8,y:groundY}
+          tar.kL={x:hipX-4,y:ky+10}; tar.fL={x:hipX-7,y:groundY}
+          tar.kR={x:hipX+4,y:ky+10}; tar.fR={x:hipX+7,y:groundY}
           
           if (timer%(actionDuration*0.8) < 100) { if(lookWaitTime<=0) lookWaitTime=400 }
           if (lookWaitTime > 0) {
-            tar.head.x -= facing*4 // looking around while breathing
+            tar.head.x -= facing*4 
             tar.head.y -= 3
           }
           if (timer > actionDuration) plan()
           break
         }
 
+        case "WAVE": {
+          vx *= 0.8
+          const br = Math.sin(timer*0.005)*1.5
+          tar = neutral(hipX, hipY)
+          tar.head.y += br; tar.neck.y += br
+          
+          // Friendly rapid wave
+          const wag = Math.sin(timer*0.02) * 15
+          tar.hR = {x: tar.sR.x + facing*15, y: tar.sR.y - 15 - wag}
+          tar.eR = ik(tar.sR.x, tar.sR.y, tar.hR.x, tar.hR.y, UA, LA, facing)
+          
+          if (timer > actionDuration) plan()
+          break
+        }
+
         case "JUMP": {
-          const asc = vy < 0
-          tar.hip={x:hipX,y:hipY}; tar.neck={x:hipX,y:ny}; tar.head={x:hipX,y:hdy}
-          tar.sL={x:hipX-6,y:ny}; tar.sR={x:hipX+6,y:ny}
-          if (asc) {
-            tar.eL={x:hipX-9,y:ny-UA*0.2}; tar.hL={x:hipX-11,y:ny-UA-LA*0.2}
-            tar.eR={x:hipX+9,y:ny-UA*0.2}; tar.hR={x:hipX+11,y:ny-UA-LA*0.2}
-            tar.kL={x:hipX-facing*8,y:hipY+UL*0.4}; tar.kR={x:hipX+facing*4,y:hipY+UL*0.7}
-            tar.fL={x:hipX-facing*6,y:hipY+UL*0.4+LL*0.6}; tar.fR={x:hipX+facing*2,y:hipY+UL*0.7+LL*0.5}
-          } else {
-            tar.eL={x:hipX-12,y:ny+UA*0.6}; tar.hL={x:hipX-14,y:ny+UA+LA*0.6}
-            tar.eR={x:hipX+12,y:ny+UA*0.6}; tar.hR={x:hipX+14,y:ny+UA+LA*0.6}
-            tar.kL={x:hipX-6,y:hipY+UL*0.9}; tar.fL={x:hipX-6,y:hipY+UL+LL}
-            tar.kR={x:hipX+6,y:hipY+UL*0.9}; tar.fR={x:hipX+6,y:hipY+UL+LL}
-          }
-          if (vy > 0 && Math.random() < 0.02) go("FALL")
+          const pr = Math.min(1, timer/actionDuration)
+          const tuck = Math.sin(pr * Math.PI) // Peak tuck mid-jump
+          tar = neutral(hipX, hipY)
+          
+          tar.kL = {x:hipX-facing*8, y:hipY-tuck*18}; tar.fL = {x:hipX-facing*10, y:hipY+10-tuck*35}
+          tar.kR = {x:hipX+facing*8, y:hipY-tuck*15}; tar.fR = {x:hipX+facing*15, y:hipY+15-tuck*30}
+          
+          tar.hL = {x:tar.sL.x-facing*15, y:tar.sL.y - UA - LA + 8}; tar.eL=ik(tar.sL.x,tar.sL.y,tar.hL.x,tar.hL.y,UA,LA, -facing)
+          tar.hR = {x:tar.sR.x+facing*15, y:tar.sR.y - UA - LA + 8}; tar.eR=ik(tar.sR.x,tar.sR.y,tar.hR.x,tar.hR.y,UA,LA, facing)
+
+          if (vy > 0 && Math.random() < 0.05) go("FALL")
           break
         }
 
@@ -714,15 +1027,14 @@ export function ParkourStickman() {
         }
 
         case "FALL": {
-          tar.hip={x:hipX,y:hipY}; tar.neck={x:hipX,y:ny}; tar.head={x:hipX,y:hdy}
-          tar.sL={x:hipX-6,y:ny}; tar.sR={x:hipX+6,y:ny}
-          // Flailing slightly
-          const fl = Math.sin(timer*0.02)*8
-          tar.eL={x:hipX-14,y:ny+UA*0.4-fl}; tar.hL={x:hipX-18,y:ny-LA*0.2-fl}
-          tar.eR={x:hipX+14,y:ny+UA*0.4+fl}; tar.hR={x:hipX+18,y:ny-LA*0.2+fl}
-          tar.kL={x:hipX-8,y:hipY+UL*0.9}; tar.fL={x:hipX-9,y:hipY+UL+LL}
-          tar.kR={x:hipX+8,y:hipY+UL*0.9}; tar.fR={x:hipX+9,y:hipY+UL+LL}
-          break
+           tar.neck = {x:hipX+facing*12, y:ny}
+           tar.hL = {x:tar.sL.x-facing*20, y:tar.sL.y - UA - LA*0.8}; tar.eL=ik(tar.sL.x,tar.sL.y,tar.hL.x,tar.hL.y,UA,LA, facing)
+           tar.hR = {x:tar.sR.x-facing*10, y:tar.sR.y - UA - LA*0.9}; tar.eR=ik(tar.sR.x,tar.sR.y,tar.hR.x,tar.hR.y,UA,LA, facing)
+           
+           const stretch = Math.min(1, Math.max(0, vy/15))
+           tar.fL = {x:hipX+facing*20*stretch, y:hipY+(UL+LL)*(1-stretch*0.3)}; tar.kL=ik(tar.hip.x,tar.hip.y,tar.fL.x,tar.fL.y,UL,LL,-facing)
+           tar.fR = {x:hipX-facing*25*stretch, y:hipY+(UL+LL)*(1-stretch*0.5)}; tar.kR=ik(tar.hip.x,tar.hip.y,tar.fR.x,tar.fR.y,UL,LL,-facing)
+           break
         }
 
         case "LAND": {
@@ -746,24 +1058,39 @@ export function ParkourStickman() {
 
         case "SLIDE": {
           useGlow = true
-          vx = facing * 7.5 * Math.max(0.4, 1-(timer/actionDuration))
-          const ang = 75*Math.PI/180
-          tar.hip={x:hipX,y:groundY-10}
-          tar.neck={x:hipX-facing*Math.sin(ang)*SP*0.9, y:groundY-10-Math.cos(ang)*SP*0.9}
-          tar.head={x:tar.neck.x-facing*3,y:tar.neck.y-9}
-          tar.sL={x:tar.neck.x-4,y:tar.neck.y}; tar.sR={x:tar.neck.x+4,y:tar.neck.y}
+          vx *= 0.96 // Friction degrades velocity
           
-          // trailing arm on the ground
-          const trh={x:hipX-facing*20,y:groundY-3}
-          tar.hR=trh; tar.eR=ik(tar.sR.x,tar.sR.y,trh.x,trh.y,UA,LA, facing)
-          tar.eL={x:tar.neck.x-facing*4-2,y:tar.neck.y+7}; tar.hL={x:tar.neck.x-facing*6-3,y:tar.neck.y+16}
+          // Smooth transition into the slide (takes 150ms to fully crouch)
+          const pr = Math.min(1, timer / 150)
+          const drop = pr * 16
           
-          // sliding leg forward, back leg tucked
-          tar.fL={x:hipX+facing*30,y:groundY-2}; tar.kL=ik(tar.hip.x,tar.hip.y,tar.fL.x,tar.fL.y,UL,LL,-facing)
-          tar.fR={x:hipX-facing*10,y:groundY-2}; tar.kR={x:hipX-facing*5,y:groundY-10}
+          tar.hip = {x:hipX, y:groundY - 24 + drop} // Hip drops down smoothly
           
-          spawnDust(hipX+facing*15, groundY, 1)
-          if (timer > actionDuration) go("RUN")
+          // Spine leans backwards by 50 degrees
+          const ang = 50 * Math.PI / 180
+          tar.neck = {x: tar.hip.x - facing*Math.sin(ang)*SP, y: tar.hip.y - Math.cos(ang)*SP}
+          tar.head = {x: tar.neck.x - facing*4, y: tar.neck.y - NL - HR/2}
+          tar.sL = {x: tar.neck.x - 4, y: tar.neck.y}; tar.sR = {x: tar.neck.x + 4, y: tar.neck.y}
+
+          // Back arm planted firmly on the ground behind him to stabilize the slide
+          const trh = {x: tar.hip.x - facing*22, y: groundY - 2}
+          tar.hR = trh; tar.eR = ik(tar.sR.x, tar.sR.y, trh.x, trh.y, UA, LA, facing)
+
+          // Front arm swept entirely up and back for dynamic balance
+          tar.hL = {x: tar.neck.x - facing*18, y: tar.neck.y - 15}
+          tar.eL = ik(tar.sL.x, tar.sL.y, tar.hL.x, tar.hL.y, UA, LA, -facing)
+
+          // Front sliding leg stretched fully forward along the ground
+          const maxReach = (UL + LL) * 0.95
+          tar.fL = {x: tar.hip.x + facing*maxReach, y: groundY}
+          tar.kL = ik(tar.hip.x, tar.hip.y, tar.fL.x, tar.fL.y, UL, LL, -facing)
+
+          // Back leg tucked beneath the hips, sliding on the knee/shin
+          tar.fR = {x: tar.hip.x - facing*12, y: groundY}
+          tar.kR = ik(tar.hip.x, tar.hip.y, tar.fR.x, tar.fR.y, UL, LL, -facing)
+          
+          if (Math.random() < 0.3) spawnDust(tar.fL.x, groundY, 1) // Less chaotic dust
+          if (timer > actionDuration || Math.abs(vx) < 1.5) go("RUN") // Exit smoothly when slow
           break
         }
 
@@ -1055,8 +1382,8 @@ export function ParkourStickman() {
         }
       }
 
-      // Exponential smoothing for fluid Animator vs Animation transitions
-      const bf = 1 - Math.pow(0.08, n)
+      // Exponential smoothing for heavy, liquid-smooth soft-body physics
+      const bf = 1 - Math.pow(0.5, n)
       _curPose = blendPose(_curPose, tar, bf)
 
       const speed = Math.hypot(vx, vy)
