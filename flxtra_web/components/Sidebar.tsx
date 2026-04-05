@@ -24,55 +24,58 @@ export default function Sidebar({ tabs, onNavigate }: SidebarProps) {
     };
 
     return (
-        <aside className="w-[260px] h-full bg-gray-950 border-r border-gray-800 flex flex-col">
+        <aside className="w-[280px] h-full bg-[#090909] border-r border-[#3a0f12] flex flex-col">
             {/* Header */}
-            <header className="flex items-center justify-between p-4 border-b border-gray-800/50">
+            <header className="flex items-center justify-between p-4 border-b border-[#3a0f12]">
                 <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-xs font-bold">
-                        ☄
+                    <div className="w-7 h-7 rounded-lg bg-[#3a0f12] border border-[#830f14] flex items-center justify-center text-sm font-bold text-white">
+                        F
                     </div>
-                    <span className="text-sm font-semibold">Comet</span>
+                    <div>
+                        <div className="text-sm font-semibold text-white">Flextra</div>
+                        <div className="text-[10px] text-[#a8a8a8]">Black·Red·White</div>
+                    </div>
                 </div>
-                <button className="w-7 h-7 rounded-md hover:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-white">
+                <button className="w-8 h-8 rounded-md hover:bg-[#1f1214] flex items-center justify-center text-[#d4d4d8] hover:text-white">
                     ⚙
                 </button>
             </header>
 
             {/* URL Bar */}
             <div className="p-4">
-                <div className="flex items-center h-9 bg-gray-900 border border-gray-800 rounded-full focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/20 transition-all">
-                    <span className="pl-3 text-green-500 text-xs">🔒</span>
+                <div className="flex items-center h-10 bg-[#121212] border border-[#3a0f12] rounded-full focus-within:border-[#ef4444] focus-within:ring-2 focus-within:ring-[#ef4444]/20 transition-all">
+                    <span className="pl-3 text-[#ef4444] text-xs">🔒</span>
                     <input
                         type="text"
                         value={urlInput}
                         onChange={(e) => setUrlInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Search or enter URL"
-                        className="flex-1 bg-transparent border-none px-3 text-sm text-white placeholder:text-gray-500 focus:outline-none"
+                        className="flex-1 bg-transparent border-none px-3 text-sm text-white placeholder:text-[#7f7f7f] focus:outline-none"
                     />
                 </div>
             </div>
 
             {/* Nav Buttons */}
             <div className="flex gap-2 px-4 pb-4">
-                <button className="flex-1 h-8 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                <button className="flex-1 h-8 rounded-lg bg-[#121212] border border-[#3a0f12] text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition-colors">
                     ←
                 </button>
-                <button className="flex-1 h-8 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                <button className="flex-1 h-8 rounded-lg bg-[#121212] border border-[#3a0f12] text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition-colors">
                     →
                 </button>
-                <button className="flex-1 h-8 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                <button className="flex-1 h-8 rounded-lg bg-[#121212] border border-[#3a0f12] text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition-colors">
                     ↻
                 </button>
-                <button className="flex-1 h-8 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                <button className="flex-1 h-8 rounded-lg bg-[#121212] border border-[#3a0f12] text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition-colors">
                     ⌂
                 </button>
             </div>
 
             {/* Tabs Header */}
             <div className="flex items-center justify-between px-4 py-2">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tabs</span>
-                <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{tabs.length}</span>
+                <span className="text-xs font-medium text-[#9a9a9a] uppercase tracking-wide">Tabs</span>
+                <span className="text-xs text-white bg-[#111111] px-2 py-0.5 rounded-full">{tabs.length}</span>
             </div>
 
             {/* Tabs List */}
@@ -80,15 +83,15 @@ export default function Sidebar({ tabs, onNavigate }: SidebarProps) {
                 {tabs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
                         <span className="text-3xl opacity-30 mb-2">📭</span>
-                        <p className="text-xs text-gray-500">No tabs open</p>
+                        <p className="text-xs text-[#8a8a8a]">No tabs open</p>
                     </div>
                 ) : (
                     tabs.map((tab) => (
                         <div
                             key={tab.id}
-                            className={`flex items-center gap-3 px-3 py-2 my-0.5 rounded-lg cursor-pointer ${tab.active
-                                    ? "bg-violet-500/10 border-l-2 border-violet-500"
-                                    : "hover:bg-gray-800/50"
+                            className={`group flex items-center gap-3 px-3 py-2 my-0.5 rounded-lg cursor-pointer ${tab.active
+                                    ? "bg-[#2f0b0f] border-l-2 border-[#ef4444]"
+                                    : "hover:bg-[#151214]"
                                 }`}
                         >
                             <div className="w-5 h-5 rounded-md bg-gray-800 flex items-center justify-center text-[10px]">
@@ -109,12 +112,12 @@ export default function Sidebar({ tabs, onNavigate }: SidebarProps) {
             </div>
 
             {/* Footer */}
-            <footer className="flex gap-2 p-4 border-t border-gray-800/50">
-                <button className="flex-1 h-9 rounded-lg bg-violet-600 hover:bg-violet-500 text-white font-medium text-xs flex items-center justify-center gap-2 shadow-lg shadow-violet-500/20">
+            <footer className="flex gap-2 p-4 border-t border-[#3a0f12]">
+                <button className="flex-1 h-9 rounded-lg bg-[#ef4444] hover:bg-[#fb7185] text-white font-medium text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#ef4444]/20">
                     + New Tab
                 </button>
-                <button className="flex-1 h-9 rounded-lg bg-gray-900 border border-gray-800 hover:bg-gray-800 text-gray-300 font-medium text-xs flex items-center justify-center gap-2">
-                    ✨ Lyra
+                <button className="flex-1 h-9 rounded-lg bg-[#121212] border border-[#3a0f12] hover:bg-[#1f1214] text-[#e5e5e5] font-medium text-xs flex items-center justify-center gap-2">
+                    ✨ AI Hub
                 </button>
             </footer>
         </aside>

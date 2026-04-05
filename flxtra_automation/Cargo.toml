@@ -1,0 +1,26 @@
+[package]
+name = "flxtra_automation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+flxtra_core = { path = "../flxtra_core" }
+flxtra_ui = { path = "../flxtra_ui" }
+flxtra_agents = { path = "../flxtra_agents" }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+pyo3 = { version = "0.21", features = ["auto-initialize"] }
+parking_lot = "0.12"
+tracing = "0.1"
+image = "0.24"
+screenshots = "0.5"
+enigo = "0.0.14"
+inputbot = "0.6"
+anyhow = "1.0"
+regex = "1.10"
+uuid = { version = "1.0", features = ["v4"] }
+
+[lib]
+name = "flxtra_automation"
+path = "src/lib.rs"

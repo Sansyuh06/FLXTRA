@@ -267,33 +267,45 @@ JSON RESPONSE:"#,
         .ok()?;
     
     let body = res.json::<serde_json::Value>().ok()?;
-    let resp_str = body["response"].as_str()?;
+    let resp_str = body["response"].as_str().unwrap_or("");
     
     tracing::info!("Agent raw response: {}", resp_str);
     
-    // Try to parse the response directly
-    if let Ok(plan) = serde_json::from_str::<AgentPlan>(resp_str) {
-        return Some(plan);
-    }
+    let cleaned = normalize_agent_response(resp_str);
     
-    // Try parsing as a wrapper with "actions" array
-    if let Ok(wrapper) = serde_json::from_str::<serde_json::Value>(resp_str) {
-        // Check for {"actions": [...]} format
-        if let Some(actions) = wrapper.get("actions").and_then(|a| a.as_array()) {
-            if let Some(first) = actions.first() {
-                if let Ok(plan) = serde_json::from_value::<AgentPlan>(first.clone()) {
+    // Try to parse from cleaned JSON candidates
+    let candidates = vec![
+        cleaned.clone(),
+        extract_first_json_object(&cleaned).unwrap_or_default(),
+    ];
+
+    for candidate in candidates {
+        if candidate.is_empty() {
+            continue;
+        }
+
+        if let Ok(plan) = serde_json::from_str::<AgentPlan>(&candidate) {
+            return Some(plan);
+        }
+
+        if let Ok(wrapper) = serde_json::from_str::<serde_json::Value>(&candidate) {
+            // Check for {"actions": [...]} format
+            if let Some(actions) = wrapper.get("actions").and_then(|a| a.as_array()) {
+                if let Some(first) = actions.first() {
+                    if let Ok(plan) = serde_json::from_value::<AgentPlan>(first.clone()) {
+                        return Some(plan);
+                    }
+                }
+            }
+            // Check for {"action": "...", ...} at root level
+            if wrapper.get("action").is_some() {
+                if let Ok(plan) = serde_json::from_value::<AgentPlan>(wrapper) {
                     return Some(plan);
                 }
             }
         }
-        // Check for {"action": "...", ...} at root level
-        if wrapper.get("action").is_some() {
-            if let Ok(plan) = serde_json::from_value::<AgentPlan>(wrapper) {
-                return Some(plan);
-            }
-        }
     }
-    
+
     // Try to extract JSON from response if it has extra text
     if let Some(start) = resp_str.find('{') {
         if let Some(end) = resp_str.rfind('}') {
@@ -304,6 +316,40 @@ JSON RESPONSE:"#,
         }
     }
     
-    error!("Failed to parse agent plan: {}", resp_str);
+    error!("Failed to parse agent plan: {}", cleaned);
+    None
+}
+
+fn normalize_agent_response(raw: &str) -> String {
+    raw.trim()
+        .replace("```json", "")
+        .replace("```", "")
+        .split('\n')
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn extract_first_json_object(raw: &str) -> Option<String> {
+    let mut depth = 0;
+    let mut start_idx = None;
+
+    for (idx, ch) in raw.char_indices() {
+        if ch == '{' {
+            if depth == 0 {
+                start_idx = Some(idx);
+            }
+            depth += 1;
+        } else if ch == '}' && depth > 0 {
+            depth -= 1;
+            if depth == 0 {
+                if let Some(start) = start_idx {
+                    return Some(raw[start..=idx].to_string());
+                }
+            }
+        }
+    }
+
     None
 }

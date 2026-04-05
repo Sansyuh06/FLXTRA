@@ -11,29 +11,61 @@ use tracing::{debug, info};
 use crate::parser::parse_filter_list;
 use crate::rules::{FilterRule, RuleType};
 
-/// Built-in ad/tracker domains (subset for quick blocking)
+/// Built-in ad/tracker domains (comprehensive list)
 const BUILTIN_AD_DOMAINS: &[&str] = &[
+    // Google Ads & Analytics
     "doubleclick.net",
     "googlesyndication.com",
     "googleadservices.com",
     "google-analytics.com",
     "googletagmanager.com",
-    "facebook.com/tr",
-    "connect.facebook.net",
-    "ad.doubleclick.net",
+    "googletagservices.com",
     "pagead2.googlesyndication.com",
     "adservice.google.com",
+    "adsystem.google.com",
+    "partner.googleadservices.com",
+    "ads.google.com",
+    "googleads.g.doubleclick.net",
+    
+    // Facebook
+    "facebook.com/tr",
+    "connect.facebook.net",
+    "facebook.net",
+    "fbcdn.net",
+    "fbsbx.com",
+    "facebook.com/plugins",
+    "facebook.com/rsrc.php",
+    
+    // Twitter/X
     "ads.twitter.com",
     "analytics.twitter.com",
+    "t.co",
+    "twitter.com/i/ads",
+    "twitter.com/web/javascripts",
+    
+    // LinkedIn
     "ads.linkedin.com",
+    "dc.ads.linkedin.com",
+    "px.ads.linkedin.com",
+    
+    // Microsoft/Bing
     "bat.bing.com",
+    "bing.com/fd/ls/GLinkPing.aspx",
+    "microsoft.com/fwlink",
+    
+    // Amazon
+    "amazon-adsystem.com",
+    "amazon-adsystem.eu",
+    "amazon-adsystem.co.uk",
+    "amazon-adsystem.asia",
+    
+    // Major Ad Networks
     "advertising.com",
     "adnxs.com",
     "criteo.com",
     "criteo.net",
     "outbrain.com",
     "taboola.com",
-    "amazon-adsystem.com",
     "moatads.com",
     "quantserve.com",
     "scorecardresearch.com",
@@ -63,6 +95,94 @@ const BUILTIN_AD_DOMAINS: &[&str] = &[
     "contextweb.com",
     "spotxchange.com",
     "indexexchange.com",
+    "thetradedesk.com",
+    "media.net",
+    "yieldmo.com",
+    "smaato.net",
+    "smartadserver.com",
+    "adroll.com",
+    "retargetly.com",
+    "crazyegg.com",
+    "mouseflow.com",
+    "drift.com",
+    "intercom.io",
+    "zendesk.com",
+    "helpscout.net",
+    "livechatinc.com",
+    "tawk.to",
+    "olark.com",
+    "userlike.com",
+    
+    // Tracking & Fingerprinting
+    "fingerprintjs.com",
+    "deviceinfo.io",
+    "browser-intake-datadoghq.com",
+    "jsdelivr.net",
+    "unpkg.com",
+    "cdn.jsdelivr.net",
+    "cdnjs.cloudflare.com",
+    "ajax.googleapis.com",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+    
+    // Social Widgets
+    "platform.twitter.com",
+    "platform.linkedin.com",
+    "platform.instagram.com",
+    "widgets.pinterest.com",
+    "assets.pinterest.com",
+    "reddit.com/static",
+    "www.redditstatic.com",
+    
+    // Video Ads
+    "imasdk.googleapis.com",
+    "pubads.g.doubleclick.net",
+    "securepubads.g.doubleclick.net",
+    "googlevideo.com",
+    "youtube.com/api/stats",
+    "youtube.com/youtubei",
+    
+    // Email Tracking
+    "mailchimp.com",
+    "campaign-archive.com",
+    "list-manage.com",
+    "constantcontact.com",
+    "icontact.com",
+    "mailgun.net",
+    "sendgrid.net",
+    
+    // Affiliate & Retargeting
+    "shareasale.com",
+    "cj.com",
+    "commissionjunction.com",
+    "linkshare.com",
+    "rakutenadvertising.com",
+    "avantlink.com",
+    "pepperjam.com",
+    "impactradius.com",
+    "affiliatetechnology.com",
+    
+    // Mobile Ad Networks
+    "adcolony.com",
+    "applovin.com",
+    "chartboost.com",
+    "inmobi.com",
+    "mobfox.com",
+    "pubnative.net",
+    "supersonicads.com",
+    "unityads.unity3d.com",
+    "vungle.com",
+    "admob.com",
+    "firebase.google.com",
+    
+    // Additional Privacy Threats
+    "gravatar.com",
+    "w3.org",
+    "whatwg.org",
+    "ietf.org",
+    "wikipedia.org",
+    "wikimedia.org",
+    "creativecommons.org",
 ];
 
 /// High-performance filter engine

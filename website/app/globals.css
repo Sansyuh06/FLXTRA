@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0a0a0a;
+  --card-foreground: #ffffff;
+  --popover: #0a0a0a;
+  --popover-foreground: #ffffff;
+  --primary: #dc2626;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: #a3a3a3;
+  --accent: #dc2626;
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #262626;
+  --input: #262626;
+  --ring: #dc2626;
+  --chart-1: #dc2626;
+  --chart-2: #ffffff;
+  --chart-3: #737373;
+  --chart-4: #ef4444;
+  --chart-5: #b91c1c;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --font-sans: var(--font-montserrat), 'Montserrat', sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Glow effects */
+.glow-text {
+  text-shadow: 
+    0 0 10px rgba(220, 38, 38, 0.5),
+    0 0 20px rgba(220, 38, 38, 0.3),
+    0 0 40px rgba(220, 38, 38, 0.2);
+}
+
+.glow-text-subtle {
+  text-shadow: 
+    0 0 8px rgba(255, 255, 255, 0.15),
+    0 0 16px rgba(255, 255, 255, 0.08);
+}
+
+.glow-button {
+  box-shadow: 
+    0 0 15px rgba(220, 38, 38, 0.4),
+    0 0 30px rgba(220, 38, 38, 0.2),
+    0 0 45px rgba(220, 38, 38, 0.1);
+  transition: all 0.3s ease;
+}
+
+.glow-button:hover {
+  box-shadow: 
+    0 0 20px rgba(220, 38, 38, 0.6),
+    0 0 40px rgba(220, 38, 38, 0.4),
+    0 0 60px rgba(220, 38, 38, 0.2);
+}
+
+.glow-icon {
+  filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.4));
+  transition: filter 0.3s ease;
+}
+
+.glow-icon:hover {
+  filter: drop-shadow(0 0 10px rgba(220, 38, 38, 0.7));
+}
+
+

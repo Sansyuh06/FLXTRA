@@ -12,19 +12,30 @@ export default function BrowserFrame({ url }: BrowserFrameProps) {
 
     return (
         <div className="w-full h-full flex flex-col">
-            {/* URL Display Bar */}
-            <div className="h-10 bg-gray-900 border-b border-gray-800 flex items-center px-4 gap-3">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-green-500 text-sm">🔒</span>
-                    <span className="text-xs text-gray-400 truncate">{url || "about:blank"}</span>
+            {/* Browser Top Bar */}
+            <div className="h-14 bg-[#070707] border-b border-[#3a0f12] flex items-center px-4 gap-3">
+                <div className="flex items-center gap-2 text-sm text-[#f5f5f5]">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ffffff] opacity-70"></span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#9f9f9f]"></span>
                 </div>
-                <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2 py-1 rounded">
-                    Web Preview
-                </span>
+                <div className="flex items-center gap-2 bg-[#0d0d0d] border border-[#3a0f12] rounded-full px-3 py-2 flex-1">
+                    <button className="w-8 h-8 rounded-full text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition">←</button>
+                    <button className="w-8 h-8 rounded-full text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition">→</button>
+                    <button className="w-8 h-8 rounded-full text-[#c4c4c4] hover:text-white hover:bg-[#1f1214] transition">⟳</button>
+                    <input
+                        readOnly
+                        value={url || "about:blank"}
+                        className="flex-1 bg-transparent border-none text-xs text-white focus:outline-none truncate"
+                    />
+                </div>
+                <button className="px-3 py-2 rounded-lg bg-[#ef4444] text-white text-xs font-semibold hover:bg-[#fb7185] transition">
+                    Secure
+                </button>
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 relative bg-gray-950">
+            <div className="flex-1 relative bg-[#050505]">
                 {url ? (
                     canEmbed ? (
                         <iframe
@@ -34,10 +45,10 @@ export default function BrowserFrame({ url }: BrowserFrameProps) {
                             title="Web Content"
                         />
                     ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[#050505]">
                             <div className="text-6xl mb-4">🚧</div>
-                            <h2 className="text-xl font-semibold mb-2">Cannot Preview This Site</h2>
-                            <p className="text-gray-400 text-sm max-w-md mb-4">
+                            <h2 className="text-xl font-semibold mb-2 text-white">Cannot Preview This Site</h2>
+                            <p className="text-[#b7b7b7] text-sm max-w-md mb-4">
                                 This website blocks embedding. In the full Flextra browser,
                                 we use Remote Browser Isolation (RBI) to securely stream any website.
                             </p>
@@ -45,17 +56,17 @@ export default function BrowserFrame({ url }: BrowserFrameProps) {
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-lg text-sm font-medium transition-colors"
+                                className="px-4 py-2 bg-[#ef4444] hover:bg-[#fb7185] rounded-lg text-sm font-medium transition-colors"
                             >
                                 Open in New Tab →
                             </a>
                         </div>
                     )
                 ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <div className="text-8xl mb-6 opacity-20">✦</div>
-                        <h1 className="text-2xl font-bold mb-2 bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Welcome to Flextra</h1>
-                        <p className="text-gray-500 text-sm">Enter a URL in the sidebar to start exploring</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+                        <div className="text-8xl mb-6 opacity-20 text-[#ef4444]">✦</div>
+                        <h1 className="text-3xl font-bold mb-3 text-white">Welcome to Flextra</h1>
+                        <p className="text-[#b7b7b7] text-sm max-w-xl text-center">This is the browser shell. Enter an address in the sidebar or ask the AI agent to navigate, search, click, and interact for you.</p>
                     </div>
                 )}
             </div>

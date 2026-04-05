@@ -16,6 +16,7 @@ members = [
     "flxtra_llm",
     "flxtra_memory",
     "flxtra_ui",
+    "flxtra_automation",
 ]
 
 [workspace.package]
