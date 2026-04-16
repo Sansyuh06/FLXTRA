@@ -1,21 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #050505;
-  --surface: #0f0f0f;
-  --surface-soft: #141414;
-  --surface-border: #3a0f12;
-  --text: #f8fafc;
-  --muted: #a8a8a8;
+  --bg: #040406;
+  --surface: rgba(14, 14, 18, 0.86);
+  --surface-soft: rgba(18, 19, 28, 0.85);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --text: #eef2ff;
+  --muted: #9ca3af;
   --accent: #ef4444;
-  --accent-muted: rgba(239, 68, 68, 0.18);
-  --success: #ffffff;
+  --accent-soft: rgba(239, 68, 68, 0.16);
+  --accent-strong: #ff6b6b;
+  --shadow: 0 32px 120px -52px rgba(0, 0, 0, 0.75);
+}
+
+html,
+body,
+#__next {
+  min-height: 100%;
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: radial-gradient(circle at top left, rgba(239, 68, 68, 0.12), transparent 22%), linear-gradient(180deg, #070707 0%, #050505 100%);
+  background: radial-gradient(circle at top left, rgba(239, 68, 68, 0.16), transparent 18%),
+    radial-gradient(circle at 80% 10%, rgba(255, 255, 255, 0.06), transparent 25%),
+    linear-gradient(180deg, #040406 0%, #08080b 100%);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
@@ -23,6 +34,31 @@ input,
 textarea,
 select {
   font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(239, 68, 68, 0.35);
+  color: white;
+}
+
+.glass-panel {
+  background: rgba(14, 14, 18, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+}
+
+.card-soft {
+  background: rgba(16, 16, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 28px 90px -40px rgba(0, 0, 0, 0.6);
+}
+
+.blur-edge {
+  backdrop-filter: blur(18px);
 }
 
 /* Custom scrollbar */
